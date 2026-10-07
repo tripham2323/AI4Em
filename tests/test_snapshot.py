@@ -9,6 +9,8 @@ import yaml
 from src.datasets.manifest import MANIFEST_COLUMNS
 from src.preprocessing import snapshot
 
+_program_hashes = snapshot.extraction_program_hashes
+
 
 @pytest.fixture
 def frozen_inputs(tmp_path, monkeypatch):
@@ -40,6 +42,25 @@ def frozen_inputs(tmp_path, monkeypatch):
     program.write_bytes(b'unchanged extraction program')
     monkeypatch.setattr(snapshot, 'extraction_program_hashes', lambda: {'builder.py': hashlib.sha256(program.read_bytes()).hexdigest()})
     return config, manifest, tmp_path / 'run', tmp_path / 'output', root, acquisition, program
+
+
+def test_derived_module_addition_keeps_raw_snapshot_current(frozen_inputs, monkeypatch, tmp_path):
+    config, manifest, run, output, *_ = frozen_inputs
+    producer_paths = _program_hashes().keys()
+    project = tmp_path / 'project'
+    for name in producer_paths:
+        path = project / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(f'raw producer {name}'.encode())
+    monkeypatch.setattr(snapshot, 'PROJECT_ROOT', project)
+    monkeypatch.setattr(snapshot, 'extraction_program_hashes', _program_hashes)
+    before = snapshot.freeze_snapshot(config, manifest, run, output)
+    (project / 'src/features/temporal.py').write_bytes(b'derived-only temporal engine')
+    after = snapshot.freeze_snapshot(config, manifest, run, output)
+    assert after['snapshot_sha256'] == before['snapshot_sha256']
+    (project / 'src/features/eye.py').write_bytes(b'changed raw eye producer')
+    with pytest.raises(ValueError, match='[Dd]rift|[Mm]ismatch'):
+        snapshot.freeze_snapshot(config, manifest, run, output)
 
 
 @pytest.mark.parametrize('change', ['config', 'manifest', 'program', 'signature', 'frozen_copy'])

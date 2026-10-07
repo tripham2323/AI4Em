@@ -2,7 +2,7 @@
 
 **Hệ thống AI phát hiện sớm dấu hiệu giảm tỉnh táo của tài xế qua khuôn mặt và diễn biến theo thời gian.**
 
-Bộ này gồm **20 tài liệu kỹ thuật + README**, đặt trong `docs/`. **Phase0 đạt smoke; full acquisition Phase1–2 mới có34/45 video. Phase3–7 đã có reader/detector/EAR/MAR/signed pose, frozen quality, shared raw pipeline và streaming Parquet builder.** Phase7 đã QC3 video full EOF/36,755 rows, round-trip/resume và394 tests; chưa chạy toàn snapshot34. Live sign/physical occlusion/face transitions/disconnect vẫn chưa quan sát; camera45s Phase7 có806 no-face frames. Xem [roadmap Phase6/7](16_Development_Roadmap.md#phase-6--head-pose-estimation), [báo cáo Phase3 lịch sử](Phase3_Report.md), [Dataset Access](Dataset_Access.md), [changelog](CHANGELOG.md) và [README project](../README.md). Chưa train classifier; Phase8–24 chưa thực thi.
+Bộ tài liệu thiết kế trong `docs/`: **Phase0–13 có CV/raw snapshot/audit, pure profiles/causal temporal, shared datasets, real RF/LSTM P0 và cold-load proof.** Full regression604passed27.11s; Phase8 frozen34videos/379,361rows giữ nguyên. P1 cả5slot data-blocked/no checkpoint; human webcam acceptance và Phase14+ aggregate evaluation/realtime/audio/Qt UI vẫn pending. Xem [roadmap](16_Development_Roadmap.md), [Dataset Access](Dataset_Access.md), [changelog](CHANGELOG.md) và [README project](../README.md) cho commands, conditional metrics/coverage và artifact paths.
 
 ## Đọc theo nhu cầu
 - **Mới vào team:** đọc 01 → 02 → 05, sau đó xem các mốc trong 16.
@@ -76,11 +76,11 @@ Tài liệu mỗi phần giữ ngắn; roadmap dài hơn vì phải đủ input/
 Thông tin nghiên cứu kiểm tra ngày **06/10/2026**, có link nguồn ở 03/04/06. Phân biệt:
 1. **Đã đọc nguồn:** UTA có 60 người/180 video và five-fold protocol; NTHU cần ký agreement; YawDD archive có 322+29 video và chưa có nhãn event.
 2. **Đề xuất thiết kế:** FPS, window, proxy thresholds, architecture, warning policy; phải kiểm chứng bằng experiment.
-3. **Đã runtime/chưa đủ acceptance:** stack CPU Phase0 và CV Phase3–5 đã chạy; downloaded subset có official membership/provenance. Chưa tải đủ acquisition45, chưa human webcam/talking/disconnect acceptance, chưa trained-model metrics/false alarms hay GPU smoke. Không gọi throughput offline là FPS camera hoặc dùng metadata package thay lockfile đã tested.
+3. **Đã runtime/chưa đủ acceptance:** CV/raw snapshot Phase3–8 và split/temporal/RF/sequence/LSTM Phase9–13 chạy trên subset local/official provenance. Có actual P0outer0 conditional metrics/cold-load; P1 thiếu eligible validation/test dưới fixed policy. Chưa đủ acquisition45, human webcam/disconnect, full benchmark/false alarms hoặc GPU smoke. Không gọi offline throughput là FPS camera.
 
 UTA không có onset labels chính xác nên chưa đo được “cảnh báo sớm hơn ngủ gật bao nhiêu giây”. EAR proxy không phải phép đo PERCLOS80 sinh lý chuẩn. Kính râm che mắt và mất mặt phải hiện không đủ tin cậy, không giả vờ Alert. Demo chỉ trong điều kiện an toàn; không dùng thay hệ thống an toàn đã chứng nhận.
 
 ## Cách giao phase tiếp theo
-> Implement Phase 6 according to 16_Development_Roadmap.md. Đọc coordinate/sign/reprojection convention ở06 và contract15; viết tests và chạy clip có consent. Không tự đổi feature schema hoặc triển khai toàn project.
+> Implement Phase14 theo16_Development_Roadmap.md. Dùng frozen P0outer0 artifacts/matching accepted timestamps; giữ all5slot/P1blockers/coverage, không che undefined partial metrics hoặc tune bằng test. Hardware Phase10 checklist kiểm riêng, software replay không là physical acceptance.
 
-User đã chốt tiếp tục với **34 video hiện có**, không chờ full-acquisition45. Sau QC Phase7, Phase8 có thể xử lý working snapshot đã freeze và Phase9 xây subject-independent splits/eligibility theo counts thực tế. Full-acquisition gate45 vẫn chưa đạt; không che missing/P1 calibration failure. Không cần dựng React/FastAPI, YOLO, Transformer hoặc tối ưu GPU trước khi CV/ML được kiểm chứng.
+User chốt dùng **34video hiện có**, không chờ full-acquisition45. Phase8 freeze/raw audit và Phase9–13 software/offline P0 đã kiểm chứng; counts/rejected sources/P1failures giữ đầy đủ. Full-acquisition gate45 vẫn chưa đạt. Không dựng React/FastAPI, YOLO, Transformer hay tối ưu GPU để thay CV/ML/hardware evidence còn thiếu.

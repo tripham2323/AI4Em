@@ -1,9 +1,10 @@
-"""Realtime calibration lifecycle."""
+"""Realtime calibration lifecycle and profile estimation protocols."""
 
 from src.calibration.manager import (
     CalibrationManager,
     CalibrationSnapshot,
     CalibrationState,
 )
+from .profile import estimate_profile, fit_qc_policy, transform_sample
 
-__all__ = ["CalibrationManager", "CalibrationSnapshot", "CalibrationState"]
+__all__ = ["CalibrationManager", "CalibrationSnapshot", "CalibrationState", 'estimate_profile', 'fit_qc_policy', 'transform_sample']

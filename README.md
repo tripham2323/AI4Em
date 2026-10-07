@@ -2,7 +2,7 @@
 
 Tài liệu thiết kế đã được chuyển vào **[docs/README.md](docs/README.md)**. Roadmap triển khai: [docs/16_Development_Roadmap.md](docs/16_Development_Roadmap.md).
 
-## Phase 0–7
+## Phase 0–13
 **Trạng thái nghiệm thu:** Phase 0 đạt. Code Phase 1–2 đã có nhưng dataset mới **34/45 video, 12/15 subjects, 8,206,607,880 bytes (~7.64 GiB)**. Drive chặn 11 file bằng “Quota exceeded”; **Phase 1–2 chưa đạt full acceptance**. Exploration chạy trên dữ liệu thật và exit 1 đúng để chặn báo thành công sai. Xem [Dataset Access](docs/Dataset_Access.md) và [changelog](docs/CHANGELOG.md).
 
 - Python **3.12 x64**, môi trường riêng `.venv/`.
@@ -15,7 +15,38 @@ Kế hoạch UTA subset: **15 người × 3 trạng thái = 45 video**, ba ngư�
 
 **Phạm vi làm việc được user chốt:** tiếp tục development với **34 video hiện có / 12 subjects**, không đợi đủ45, không tự tải thêm. Kế hoạch acquisition45 và ledger11 missing được giữ để truy nguyên, không sửa thành “đã đủ”. Phase8 xử lý snapshot34 sau khi Phase7 qua QC; Phase9 chia theo subject/official fold với số lượng thực tế, không cố định9/3/3 hoặc36/12/12. Subject51 thiếu Alert nên P1 phải abstain, không lấy Low Vigilance làm baseline hoặc tự đổi sang P0.
 
-Phase 3–5 đã có reader/detector/EAR/MAR và recorded eye/mouth evidence; **178 tests** là kết quả lịch sử. Phase 6–7 đã có signed pose, quality profile đo thật, pipeline dùng chung và streaming Parquet builder/CLI. Final regression: **394 passed in12.01s**. Ba video subject04 đã xử lý full EOF, tổng36,755 rows; round-trip và resume3/3 cached đạt. Bằng chứng tại `runs/phase6/`, `runs/phase7/`. Webcam Phase7/45s:806 emitted, tất cả no-face, capture/model release; **live pose signs, physical occlusion/face transitions và disconnect chưa quan sát**. Chưa calibration/temporal/classifier/training/realtime UI cuối cùng.
+Phase3–8 đã có CV/raw pipeline, signed pose và frozen quality. **Phase8 xử lý/audit34/34 videos, 379,361 rows; resume34/34cached**, historical441tests. Có9 videos0eye/mouth/pose-valid, subjects18/45 hoàn toàn0coverage dưới policy hiện tại: **extraction complete không là training-ready**. Giữ nguyên snapshot/raw config và tất cả rejected sources; không tải thêm dữ liệu.
+
+## Phase9–13 — kết quả đã chạy
+
+Đã có five restricted official splits, train-only QC/P0 và pure P1 profiles, causal native events/10Hz temporal, shared window index, RF, unique-train scaler và LSTM trainer/trusted bundle. **Full regression604passed27.11s.** P0outer0 dùng3863train/2083validation/3861test windows; test accepted3861/5361scheduled. Metrics chỉ có điều kiện trên windows đạt gate của development subset, không phải full UTA benchmark.
+
+| P0 outer0, seed42 | Validation Macro F1 | Test Macro F1 | Selection |
+|---|---:|---:|---|
+| RF | 0.173248 | 0.238839 | Fixed config, no tuning |
+| LSTM | 0.276877 | 0.230164 | Best epoch28; early stop after36epochs |
+
+Independent fresh-process reload đã đạt: RF full3861test probabilities atol1e-12; LSTM real64×100×16 batch atol1e-6. LSTM không thắng RF trên test; cả hai hiện có chất lượng thấp, **không dùng cho an toàn lái xe**.
+
+**P1 cả5outer slots bị data gate chặn** do profile QC/camera provenance và thiếu accepted validation/test support. Actual RF/LSTM P1outer0 CLIs trả blocked/nonzero, không tạo checkpoint và không fallback P0. P0outer3 thiếu validation classes; outer4 chỉ có Low Vigilance ở test. Full-fold aggregation/bootstrap/realtime manager/audio/Qt UI thuộc Phase14 trở đi, chưa triển khai.
+
+### Lệnh offline — PowerShell tại project root
+```powershell
+.\.venv\Scripts\python.exe -m scripts.build_splits --snapshot-run runs/phase8 --split-dir data/splits --run-dir runs/phase9
+.\.venv\Scripts\python.exe -m scripts.build_derived --mode P0 --split-dir data/splits --snapshot-run runs/phase8 --output-root data/processed --run-dir runs/phase11/derived
+.\.venv\Scripts\python.exe -m scripts.build_derived --mode P1 --split-dir data/splits --snapshot-run runs/phase8 --output-root data/processed --run-dir runs/phase11/derived
+$p0 = ((Get-Content runs/phase11/derived/P0.json -Raw | ConvertFrom-Json).artifacts | Where-Object outer_index -eq 0).path
+.\.venv\Scripts\python.exe -m scripts.train_baseline --derived-manifest $p0 --outer-index 0 --mode P0 --config configs/training.yaml --run-dir runs/phase11/rf_p0_outer0_repeat
+.\.venv\Scripts\python.exe -m scripts.train_lstm --derived-manifest $p0 --outer-index 0 --mode P0 --config configs/training.yaml --run-dir runs/phase13/lstm_p0_outer0_repeat --cpu-threads 4
+```
+Training run-dir phải mới hoặc rỗng; không ghi đè frozen run. Dataset/derived manifests ghi absolute local paths và SHA; clone mới cần dữ liệu hợp pháp và snapshot local tương ứng, không tải từ GitHub.
+
+### Webcam — cần người kiểm tra trực tiếp
+```powershell
+.\.venv\Scripts\python.exe -m scripts.webcam_demo --source webcam --camera-index 0 --snapshot-run runs/phase8 --profiles data/splits/outer_0.json --mode P1 --confirm-alert --seconds 120 --log-dir runs/phase10/manual_p1_check
+```
+Chỉ xác nhận khi đang tỉnh táo, ngồi an toàn; **không chạy khi lái xe**. 30–60s đầu nhìn thẳng/mở mắt tự nhiên/ánh sáng ổn định; sau calibration thử blink/closure/mouth-open/turn/cover-face. Failed calibration giữ UNRELIABLE, phải restart để retry. Mất/invalid dữ liệu không thành Drowsy. Camera access smoke không là physical acceptance: lượt đầu60faces nhưng brightness QC reject; lượt cuối56no-face, cả hai rules abstain và release. Manual scenarios/disconnect vẫn NOT_RUN. Không lưu ảnh mặc định; dùng log-dir mới cho mỗi lượt.
+
 
 ## Cài lại môi trường — PowerShell
 ```powershell
@@ -97,6 +128,15 @@ Audit không trích xuất lại hoặc sửa feature pairs: reopen toàn bộ r
 - `configs/quality_policy_v1.json`: frozen optical evidence và policy, không chứa ảnh mặt.
 - `runs/phase6/`: numerical/native pose proof, three-clip prefix, actual windows và webcam.
 - `runs/phase7/`: measured quality, actual gated windows/controls, native blank/parity, selected-three EOF Parquet+metadata và resume. Default preview report: `runs/phase7/preview/preview_report.json`.
+- `data/processed/raw_features/`:34 verified EOF Parquet+metadata pairs,379,361 rows.
+- `data/processed/extraction_status.parquet`: source fields/status giữ nguyên, extraction/audit statuses và frozen snapshot provenance.
+- `runs/phase8/`: frozen snapshot, `extraction_report.json`, current `report.json`, `audit.json`, `coverage.csv`, `resume_report.json`, `acceptance_summary.json` và permitted quality spotchecks; interrupted staging đã dọn.
+- `data/splits/outer_0..4.json`: full subject/video roles, frozen P0/P1 profiles, train QC và reserved prefixes.
+- `data/processed/derived_<hash>/`: typed per-video temporal cache, `window_index.parquet`, `dataset_manifest.json`; exact protocol/provenance and rejection support.
+- `runs/phase10/`: clear/rejected native rule replay, camera access và causal/cache parity receipts; physical acceptance riêng.
+- `runs/phase11/rf_p0_outer0_seed42_verified/`: trusted joblib, summaries/schema, frozen config/split/selection, predictions/metrics và cold reload proof.
+- `runs/phase12/p0_outer0_batch_parity.json`:49400unique train steps, independent scaler/tensor arithmetic và three representative real batches.
+- `runs/phase13/lstm_p0_outer0_seed42/`: best bundle, scaler,36epoch history, validation/test metrics và cold reload proof; P1 blocked receipts tách riêng.
 - `notebooks/01_dataset_exploration.ipynb`: đọc manifest để team xem thống kê.
 
-Video, ảnh thử nghiệm, environment và output lớn được `.gitignore`. `image_publishable` chỉ là quyền công bố ảnh, không phải quyền tái phân phối dataset. Nhãn UTA áp cho cả video, không chính xác từng frame. Phase8 toàn snapshot, calibration/training và UI cuối cùng chưa thực thi.
+Video, ảnh thử nghiệm, environment, runtime logs, profiles và model weights được `.gitignore`, không push lên GitHub. `image_publishable` chỉ là quyền công bố ảnh, không phải quyền tái phân phối dataset. Nhãn UTA áp cho cả video, không chính xác từng frame. Offline Phase9–13 P0 đã kiểm chứng; P1 data-blocked và human webcam acceptance vẫn riêng. Không cần thao tác webcam để chạy offline; UI/audio/realtime cuối cùng chưa triển khai.

@@ -1,0 +1,24 @@
+# Derived-only policy: raw preprocessing provenance remains frozen.
+# Event settings are copied from the frozen preprocessing.yaml, not tuned on test.
+schema_version: facial_temporal_v1
+sequence_fps: 10
+max_sample_age_ms: 100
+max_gap_s: 1
+statistics_window_s: 60
+blink_enter: 0.65
+blink_exit: 0.75
+blink_min_s: 0.10
+blink_max_s: 0.80
+perclos_threshold: 0.20
+perclos_min_history_s: 30
+perclos_min_coverage: 0.80
+yawn_enter: 0.35
+yawn_exit: 0.25
+yawn_min_s: 2.0
+rule_ear_threshold: 0.20
+rule_ear_closure_s: 1.0
+rule_closure_s: 1.5
+rule_drowsy_perclos: 0.25
+rule_low_vigilance_perclos: 0.15
+# Valid rules emit diagnostic one-hot class order [Alert, Low Vigilance, Drowsy],
+# not calibrated probabilities. Invalid predictions carry three NaNs.
