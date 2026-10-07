@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-10-07 — Phase 20/21 Desktop UI và Startup
+
+- Cài đặt `MainWindow` bằng PySide6 hiển thị video, system status, mode P1/P0, EAR/MAR/PERCLOS/Pose, và smoothed probabilities.
+- Render UI ở tốc độ tối đa 10Hz qua cấu trúc `UiSnapshot` truyền từ thread backend; các thông số thiếu được hiển thị là `N/A` thay vì fake metrics.
+- Âm thanh cảnh báo `QSoundEffect` được tích hợp trên main thread theo `AlertDecision.audio_command`, bao gồm nút Mute.
+- Triển khai `main.py` nhận args `--config` đọc `configs/realtime.yaml`, validate assets, models và mode lúc cold-start.
+- Cung cấp flag `--fixture` cho mục đích test UI layout, render, timer, và smoke test widget mà không cần `CameraWorker` (Phase 19 từ Team 3 chưa hoàn thành).
+- Chuẩn hóa contract nhận/gửi tín hiệu luồng an toàn qua PySide6 Signals. Đã cập nhật README hướng dẫn chạy desktop UI.
+
 ## 2026-10-07 — Team handoff và GitHub publication policy
 
 - Thêm bốn tài liệu `Team_01`–`Team_04`: evaluation, realtime core, alerts/camera worker và desktop UI/startup; có ownership, prerequisites, tài liệu nguồn và checklist nghiệm thu bằng evidence thật.

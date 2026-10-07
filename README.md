@@ -45,6 +45,12 @@ Chạy tại project root, không dùng Python global/Conda mặc định:
 .venv/Scripts/python.exe -m pytest -q
 .venv/Scripts/python.exe -m scripts.preview_landmarks --video data/raw/uta_rldd/04/0.mp4 --seconds 12
 .venv/Scripts/python.exe -m scripts.preview_landmarks --camera 0 --seconds 45
+
+### Desktop UI — Phase 20
+```powershell
+.venv/Scripts/python.exe main.py --config configs/realtime.yaml
+# Run với test fixture UI vì CameraWorker Phase 19 chưa implement:
+.venv/Scripts/python.exe main.py --fixture
 ```
 
 ### Raw feature extraction — Phase6/7
