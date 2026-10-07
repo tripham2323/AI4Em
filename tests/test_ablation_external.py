@@ -44,9 +44,11 @@ def test_freeze_is_immutable_and_idempotent(tmp_path):
         abl.freeze("t", cfg, [1, 2], tmp_path)  # different matrix under the same id
 
 
-def test_train_is_blocked_not_faked_while_trainer_script_is_missing(tmp_path):
+def test_train_is_blocked_not_faked_while_trainer_script_is_missing(tmp_path, monkeypatch):
     abl.freeze("tr", PROJECT_ROOT / "configs/training.yaml", [42], tmp_path)
-    assert not abl.TRAINER_SCRIPTS["lstm"].exists()  # modeling owner has not delivered scripts/train_lstm.py
+    missing_trainer = tmp_path / "missing_train_lstm.py"
+    monkeypatch.setitem(abl.TRAINER_SCRIPTS, "lstm", missing_trainer)
+    assert not missing_trainer.exists()
     assert abl.main(["train", "--run-id", "tr", "--out-root", str(tmp_path), "--experiments", "A"]) == abl.EXIT_BLOCKED
     assert abl.main(["train", "--run-id", "missing", "--out-root", str(tmp_path)]) == 2  # no frozen matrix
 
@@ -98,7 +100,7 @@ def test_collect_writes_results_with_undefined_left_empty_and_lists_not_run(tmp_
     assert dict(zip(header, text[1].split(",")))["drowsy_recall"] == ""  # undefined stays empty, not 0
     not_run = {r["experiment_id"] for r in json.loads((tmp_path / "out" / "not_run.json").read_text())}
     assert {"C", "D", "E", "RF_D", "E03", "E04", "E06"} <= not_run
-    paired = json.loads((tmp_path / "out" / "paired.json").read_text())
+    paired = json.loads((tmp_path / "out" / "paired.json").read_text(encoding="utf-8"))
     assert paired["lstm_C_vs_B"]["status"] == "chưa thực hiện" and paired["lstm_B_vs_A"]["n_subjects"] == 2
 
 

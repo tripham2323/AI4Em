@@ -56,8 +56,8 @@ def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--predictions", type=Path, required=True, help="predictions .parquet/.csv")
     p.add_argument("--run-dir", type=Path, required=True, help="output directory, e.g. runs/<id>")
-    p.add_argument("--min-video-coverage", type=float, required=True,
-                   help="min accepted/eligible windows for a video prediction; below it the video abstains")
+    p.add_argument("--min-video-coverage", type=float, default=0.5,
+                   help="min accepted/eligible windows for a video prediction; below it the video abstains (default: 0.5)")
     p.add_argument("--n-boot", type=int, default=1000, help="subject-cluster bootstrap draws")
     p.add_argument("--seed", type=int, default=0)
     p.add_argument("--confidence", type=float, default=0.95)

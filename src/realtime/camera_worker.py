@@ -19,6 +19,7 @@ from PySide6.QtCore import QObject, Signal
 
 from src.alerts.manager import AlertManager
 from src.contracts import AlertDecision, DetectionResult, SystemStatus, UiSnapshot
+from src.features.temporal import FEATURE_NAMES
 from src.preprocessing.video_reader import VideoReader
 
 
@@ -162,22 +163,34 @@ class CameraWorker(QObject):
         return rgb.tobytes(), (width, height)
 
     def _make_snapshot(
-        self, packet: Any, detection: DetectionResult, alert: AlertDecision,
+        self, packet: Any, detector: Any, detection: DetectionResult, alert: AlertDecision,
         fps: float, started: float,
     ) -> UiSnapshot:
         now_ms = perf_counter_ns() // 1_000_000
         preview, size = self._preview_rgb(packet)
         prediction = detection.smoothed_prediction
         prediction_age = None if prediction is None else max(0, now_ms - prediction.timestamp_ms)
+        feature_sample = getattr(detector, "last_feature_sample", None)
+        temporal_sample = getattr(detector, "last_temporal_sample", None)
+        temporal_display = {
+            "capture_timestamp_ms": packet.timestamp_ms,
+            "capture_age_ms": max(0, now_ms - packet.timestamp_ms),
+            "worker_dropped_frames": self._slot.dropped,
+        }
+        if temporal_sample is not None:
+            values = dict(zip(FEATURE_NAMES, temporal_sample.values, strict=True))
+            perclos = float(values["perclos_60"])
+            temporal_display.update(perclos=perclos if math.isfinite(perclos) else None,
+                                    segment_id=temporal_sample.segment_id)
+            window_quality = detection.quality.get("window")
+            if isinstance(window_quality, Mapping) and "missing_ratio" in window_quality:
+                missing_ratio = float(window_quality["missing_ratio"])
+                temporal_display["coverage"] = 1.0 - missing_ratio if math.isfinite(missing_ratio) else None
         return UiSnapshot(
             preview_rgb=preview,
             preview_size=size,
-            feature_sample=None,
-            temporal_display={
-                "capture_timestamp_ms": packet.timestamp_ms,
-                "capture_age_ms": max(0, now_ms - packet.timestamp_ms),
-                "worker_dropped_frames": self._slot.dropped,
-            },
+            feature_sample=feature_sample,
+            temporal_display=temporal_display,
             detection=detection,
             alert=alert,
             fps=fps,
@@ -231,10 +244,11 @@ class CameraWorker(QObject):
                     fps_started = perf_counter()
                 now = perf_counter()
                 if now - last_publish >= self._publish_interval_s:
-                    self.snapshot_ready.emit(self._make_snapshot(packet, detection, alert, fps, started))
+                    self.snapshot_ready.emit(self._make_snapshot(packet, detector, detection, alert, fps, started))
                     last_publish = now
 
-                current_status = (detection.system_status, detection.calibration_status)
+                message = str(detection.quality.get("reason") or detection.calibration_status)
+                current_status = (detection.system_status, message)
                 if current_status != last_status:
                     self.status_changed.emit(*current_status)
                     last_status = current_status

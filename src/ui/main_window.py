@@ -1,13 +1,13 @@
-from typing import Optional
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, 
-    QLabel, QGroupBox, QGridLayout, QProgressBar, QMessageBox,
-    QTextEdit, QFrame, QSizePolicy, QSlider, QCheckBox
+    QLabel, QGroupBox, QGridLayout, QProgressBar,
+    QTextEdit, QSizePolicy, QSlider, QCheckBox
 )
 from PySide6.QtCore import Qt, Slot, Signal, QUrl, QTime, QTimer
-from PySide6.QtGui import QImage, QPixmap, QFont
+from PySide6.QtGui import QImage, QPixmap
 from PySide6.QtMultimedia import QSoundEffect
 
+from src.config import PROJECT_ROOT
 from src.contracts import UiSnapshot, SystemStatus
 
 # Modern Dark Theme Stylesheet
@@ -368,6 +368,23 @@ class MainWindow(QMainWindow):
     def log_event(self, message: str):
         timestamp = QTime.currentTime().toString("HH:mm:ss")
         self.log_text.append(f"<span style='color: #64B5F6;'>[{timestamp}]</span> {message}")
+
+    @Slot(object, str)
+    def render_status(self, status: SystemStatus, message: str) -> None:
+        value = status.value if isinstance(status, SystemStatus) else str(status)
+        color = "#81C784" if value == "READY" else "#FFF176" if value in {"WARMING_UP", "CALIBRATING"} else "#E57373"
+        self.lbl_status.setText(f"● {value}")
+        self.lbl_status.setStyleSheet(f"color: {color}; font-weight: bold; font-size: 14px;")
+        if message:
+            self.log_event(message)
+
+    @Slot()
+    def worker_finished(self) -> None:
+        self.session_timer.stop()
+        self.sound_effect.stop()
+        self.lbl_status.setText("● STOPPED")
+        self.lbl_status.setStyleSheet("color: #E57373; font-weight: bold; font-size: 14px;")
+        self.log_event("Realtime worker stopped and released its resources.")
         
     @Slot(UiSnapshot)
     def render(self, snapshot: UiSnapshot):
@@ -396,10 +413,10 @@ class MainWindow(QMainWindow):
         # 3. Biometric Features
         fs = snapshot.feature_sample
         if fs and fs.face_detected:
-            l = f"{fs.ear_left:.3f}" if fs.left_eye_valid else "--"
-            r = f"{fs.ear_right:.3f}" if fs.right_eye_valid else "--"
-            m = f"{fs.ear_mean:.3f}" if (fs.left_eye_valid and fs.right_eye_valid) else "--"
-            self.lbl_ear.setText(f"EAR (L/R/Mean): <b>{l}</b> / <b>{r}</b> / <b>{m}</b>")
+            left = f"{fs.ear_left:.3f}" if fs.left_eye_valid else "--"
+            right = f"{fs.ear_right:.3f}" if fs.right_eye_valid else "--"
+            mean = f"{fs.ear_mean:.3f}" if (fs.left_eye_valid and fs.right_eye_valid) else "--"
+            self.lbl_ear.setText(f"EAR (L/R/Mean): <b>{left}</b> / <b>{right}</b> / <b>{mean}</b>")
             
             mar = f"{fs.mar:.3f}" if fs.mouth_valid else "--"
             self.lbl_mar.setText(f"MAR: <b>{mar}</b>")
@@ -427,7 +444,7 @@ class MainWindow(QMainWindow):
             self.bar_low_vig['bar'].setValue(int(probs[1] * 100))
             self.bar_drowsy['bar'].setValue(int(probs[2] * 100))
             
-            class_name = pred.class_id.name if pred.class_id else 'N/A'
+            class_name = pred.class_id.name if pred.class_id is not None else 'N/A'
             self.lbl_class.setText(f"Current State: {class_name}")
             
         else:
@@ -453,10 +470,10 @@ class MainWindow(QMainWindow):
             self.lbl_warning.setStyleSheet("background-color: #1E1E1E; color: #81C784; border-radius: 8px; font-size: 16px; font-weight: bold; border: 1px solid #333;")
             
         # 5. Audio Playback
-        if alert.audio_command and not self.is_muted:
+        if alert.audio_command in {"drowsy", "strong"} and not self.is_muted:
             if self.current_audio != alert.audio_command or not self.sound_effect.isPlaying():
                 self.current_audio = alert.audio_command
-                url = QUrl.fromLocalFile(f"models/assets/{alert.audio_command}.wav")
+                url = QUrl.fromLocalFile(str(PROJECT_ROOT / "models" / "assets" / "warning.wav"))
                 self.sound_effect.setSource(url)
                 self.sound_effect.play()
                 self.log_event(f"Playing alert sound: {alert.audio_command}")
