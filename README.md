@@ -19,7 +19,7 @@ Phase3–8 đã có CV/raw pipeline, signed pose và frozen quality. **Phase8 x�
 
 ## Phase9–13 — kết quả đã chạy
 
-Đã có five restricted official splits, train-only QC/P0 và pure P1 profiles, causal native events/10Hz temporal, shared window index, RF, unique-train scaler và LSTM trainer/trusted bundle. **Full regression604passed27.11s.** P0outer0 dùng3863train/2083validation/3861test windows; test accepted3861/5361scheduled. Metrics chỉ có điều kiện trên windows đạt gate của development subset, không phải full UTA benchmark.
+Đã có five restricted official splits, train-only QC/P0 và pure P1 profiles, causal native events/10Hz temporal, shared window index, RF, unique-train scaler và LSTM trainer/trusted bundle. **Regression sau tích hợp main:665passed28.12s.** P0outer0 dùng3863train/2083validation/3861test windows; test accepted3861/5361scheduled. Metrics chỉ có điều kiện trên windows đạt gate của development subset, không phải full UTA benchmark.
 
 | P0 outer0, seed42 | Validation Macro F1 | Test Macro F1 | Selection |
 |---|---:|---:|---|
@@ -28,7 +28,7 @@ Phase3–8 đã có CV/raw pipeline, signed pose và frozen quality. **Phase8 x�
 
 Independent fresh-process reload đã đạt: RF full3861test probabilities atol1e-12; LSTM real64×100×16 batch atol1e-6. LSTM không thắng RF trên test; cả hai hiện có chất lượng thấp, **không dùng cho an toàn lái xe**.
 
-**P1 cả5outer slots bị data gate chặn** do profile QC/camera provenance và thiếu accepted validation/test support. Actual RF/LSTM P1outer0 CLIs trả blocked/nonzero, không tạo checkpoint và không fallback P0. P0outer3 thiếu validation classes; outer4 chỉ có Low Vigilance ở test. Full-fold aggregation/bootstrap/realtime manager/audio/Qt UI thuộc Phase14 trở đi, chưa triển khai.
+**P1 cả5outer slots bị data gate chặn** do profile QC/camera provenance và thiếu accepted validation/test support. Actual RF/LSTM P1outer0 CLIs trả blocked/nonzero, không tạo checkpoint và không fallback P0. P0outer3 thiếu validation classes; outer4 chỉ có Low Vigilance ở test. Đã tích hợp evaluation từ main: window/video/subject reports, bootstrap, fold aggregation, ablation collector và external evaluator. CLI evaluation đã smoke trên real accepted RF outer0 predictions; không phải full eligible coverage hay five-fold benchmark. A–E variant-specific training vẫn BLOCKED; realtime manager/audio/Qt UI chưa triển khai.
 
 ### Lệnh offline — PowerShell tại project root
 ```powershell

@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-10-07 — Tích hợp GitHub main evaluation với Phase9–13
+
+- Giải hai add/add conflicts ở evaluator và evaluation tests; giữ cả strict training ModelEvaluator và main window/video/subject/bootstrap/fold APIs, cùng các consumer tests của hai phía.
+- Bổ sung cohort intersection/P1 coverage/prefix-mask helpers ở datasets/cohorts.py; migrate cohort tests sang module đúng trách nhiệm, không đổi summary algorithm/frozen producer fingerprints. Sửa ablation BLOCKED diagnostic: full-feature trainers có thật, nhưng variant-specific A–E integration chưa có.
+- **665tests passed28.12s**. Fresh-process RF3861test reload và LSTM64window reload đạt tolerances cũ; cả hai training reports giữ nguyên metrics và coverage5361scheduled. Real main evaluation CLI tạo metrics/predictions/provenance/confusion plot, đã xem plot; input chỉ accepted RF outer0, report đúng1/5fold và không claim full benchmark.
+- Dataset/model/run artifacts vẫn local; không đưa existing uncommitted Phase8 plan vào merge.
+
 ## 2026-10-07 — Phase9–13 causal profiles/windows và real RF/LSTM
 
 - Five restricted official subject splits, train-only QC/population P0, pure P1 Alert-prefix estimators/reserved ranges. Exact14 frozen raw-producer inventory preserves Phase8 signature when adding temporal.py; actual unchanged34cached/resume và34complete/audit. No raw config/contracts/quality/source mutation/download.
