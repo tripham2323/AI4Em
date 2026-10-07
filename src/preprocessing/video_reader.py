@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import math
 from pathlib import Path
+from threading import Event
 import time
 from collections.abc import Iterator
 from typing import Any
@@ -162,7 +163,8 @@ class VideoReader:
             self._finish(token, "STOPPED")
 
     def iter_camera(
-        self, camera_index: int = 0, target_fps: float = 20, *, width: int = 640, height: int = 480
+        self, camera_index: int = 0, target_fps: float = 20, *, width: int = 640, height: int = 480,
+        stop_event: Event | None = None,
     ) -> Iterator[FramePacket]:
         self._validate_target(target_fps)
         token = self._begin()
@@ -184,7 +186,7 @@ class VideoReader:
             previous_ns = None
             last_bucket = -1
             index = 0
-            while self._token is token:
+            while self._token is token and not (stop_event is not None and stop_event.is_set()):
                 ok, image = capture.read()
                 if not ok or image is None:
                     raise RuntimeError(f"Camera {camera_index} read failed or disconnected")
