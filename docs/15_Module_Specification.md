@@ -1,6 +1,6 @@
 # 15 — Module contracts
 
-Contract này là chuẩn cho coding agent. Shared records trong `src/contracts.py` giữ nguyên; reader/detector có ở Phase3, EAR/MAR ở Phase4/5, signed pose/quality/shared pipeline/builder ở Phase6/7. Calibration/temporal/model/realtime còn lại là thiết kế. Modules nhận config/dependency qua constructor, không đọc config toàn cục. Thời gian ms, duration giây, góc độ, velocity độ/giây; probability/coverage ở0–1, **EAR/MAR không có upper bound1**.
+Contract này là chuẩn cho coding agent. Shared records trong `src/contracts.py` giữ nguyên. Phase3–8 có CV/raw pipeline/snapshot/audit; Phase9–13 đã có pure profiles, causal temporal, shared windows, RF, sequence scaler và LSTM trainer/bundle. P0 đã train/reload thật; mọi slot P1 bị data gate chặn, không có P1 checkpoint. Realtime manager/buffer/smoother/alerts/Qt UI và Phase14 aggregate evaluation vẫn là thiết kế. Thời gian ms, duration giây, góc độ, velocity độ/giây; probability/coverage ở0–1, **EAR/MAR không có upper bound1**.
 
 ## Shared records — `src/contracts.py`
 | Type | Trường tối thiểu |
@@ -41,8 +41,13 @@ Sampling chọn frame đầu tiên mỗi bucket `floor((source_ms-origin_ms)*tar
 | FeatureDatasetBuilder / preprocessing/builder.py | `FeatureDatasetBuilder(config,*,constant_fps_verified=False)`, `build(manifest,output_dir,*,video_ids=None) -> dict` | Working validator accepts partial subject coverage, acquisition validator stays strict. Streaming1024 scalar rows, fullEOF and release, source SHA before/after. Metadata-last marker, Parquet SHA/schema/footer/fingerprint required for resume; per-source failure continues, nonzero CLI |
 | Snapshot runner / preprocessing/snapshot.py | `freeze_snapshot(config_path,manifest_path,run_dir,output_dir) -> dict`, `run_snapshot(config_path,manifest_path,run_dir,output_dir) -> dict` | Byte-copy freeze + self-hash/source/program/signature provenance; drift refuse, sequential unchanged builder against full frozen manifest, checkpoint every pending/completed/cached/failed member; no downloads/source-status mutation |
 | Feature audit / preprocessing/audit.py | `audit_snapshot(config_path,manifest_path,output_dir,snapshot,extraction_report) -> dict` | Read-only pair validation and streaming row/identity/null/time/count/release audit; frame-weighted video/subject/class coverage, explicit failed support and overlapping reason counts; CLI publishes separate extraction-status manifest |
-| TemporalFeatureExtractor / features/temporal.py | FeatureSample + CalibrationProfile → `list[TemporalSample]`; `update(sample, profile)`, `reset()` | Cập nhật event ở tốc độ raw, trả 0 hoặc nhiều tick 10 Hz đã đến hạn theo [06–07]. Với tick trước timestamp sample mới, dùng lịch sử trước sample đó; tick trùng timestamp được dùng sample mới. Không đưa sample tương lai vào tick quá khứ; không future interpolation |
-| SequenceDataset / datasets/sequence.py | derived data + index + scaler → `(x, label_id, metadata)`; `__len__`, `__getitem__(index)` | NumPy/PyTorch Dataset, 100×16, float32; missing transform/scaler đúng [07] |
+| Splits / datasets/splits.py | `make_outer_split(manifest,test_fold)`, `build_splits(...)` → five restricted official outer slots | Subject-disjoint train/validation/test; train-only QC/P0 numerics; retain invalid profiles and complete source membership |
+| Profiles / calibration/profile.py | `fit_qc_policy(...)`, `estimate_profile(...)`, `transform_sample(sample,profile)` | P1 Alert prefix30–60s/20s valid, independent eyes, train QC bounds/stability, strict camera/schema/assets; no silent P0 fallback |
+| TemporalFeatureExtractor / features/temporal.py | `TemporalFeatureExtractor(profile,config)`, `update(sample) -> list[TemporalSample]`, `reset()` | Native event transitions; causal10Hz latest-not-future hold≤100ms; gap>1s/source switch resets; exact16 names/masks and clipped60s duration/event receipts |
+| Derived cache / datasets/derived.py | `build_derived(split,profiles,*,raw_dir,snapshot,temporal_config,output_dir,mode)`, `read_temporal(path)` | Per-video typed16-channel Parquet; source/raw-commit/snapshot/split/profile/config/code identities; changed identity gets a new directory |
+| Window index / datasets/sequence.py | `build_window_index(temporal,*,split,config)` → accepted index with coverage | 100 ticks spanning9.9s, nominal10s/stride1; exclusive end_row; missing>20%, gap/current masks/prefix gates; mode/outer identity bound by dataset manifest |
+| SequenceDataset / datasets/sequence.py | `SequenceDataset(index,*,derived_manifest,scaler,feature_names)`, `__getitem__` → `(x,label_id,metadata)` | Immutable per-video cache, returned float32[100,16] copy; integer label and IDs outside X; exact scaler/manifest protocol binding |
+| Normalization / datasets/normalization.py | `fit_scaler(train_unique_timesteps,feature_names)`, `transform_values(values,validity,scaler)` | Unique accepted-train(video,segment,time), valid-only first10 channels; zero-observation channel blocks; invalid→0 after scale; six flags unscaled |
 
 ### Eye/mouth implementation semantics — Phase4/5
 - Epsilon lấy từ resolved preprocessing config (hiện1e-6), hữu hạn/dương/non-boolean; áp cho denominator pixel đầy đủ:2*eye_width hoặc3*mouth_width. Denominator≤epsilon invalid, không dùng epsilon để bịa một ratio.
@@ -55,13 +60,19 @@ Sampling chọn frame đầu tiên mỗi bucket `floor((source_ms-origin_ms)*tar
 ## Model và evaluation
 | Module / file | Purpose, Input → Output; Interface | Dependencies |
 |---|---|---|
-| BaselineClassifier / models/baseline.py | RF summary `[N,D]`, labels → fitted model; `fit(X,y,sample_weight=None)`, `predict_proba(X)` → `[N,3]` | sklearn + train-only imputer; class order phải remap 0/1/2, không tin thứ tự library ngầm |
-| LSTMClassifier / models/lstm.py | `forward(x:[B,T,F])` → logits `[B,3]` | torch.nn; F từ feature_names, head [08], không softmax trong forward |
-| ModelTrainer / training/trainer.py | model, train_loader, val_loader, config → best checkpoint/history; `fit()` | PyTorch hoặc baseline adapter; val Macro F1, early stopping; không nhận test loader |
-| ModelEvaluator / evaluation/evaluator.py | labels/probabilities/metadata/coverage → metrics + artifacts; `evaluate(...)`, `aggregate_folds(reports)` | sklearn, plotting; classes/support, per-subject, undefined metric handling |
-| ModelBundle / models/bundle.py | trusted checkpoint/config → model + transforms; `load(path)`, `validate_schema(names,hashes)` | torch/joblib; reject mismatch, no silent fallback |
+| RuleBasedClassifier / models/rules.py | `RuleBasedClassifier(config,mode='temporal')`, `predict(TemporalSample)` | Mode ear_only/temporal; missing/startup abstains; valid outputs diagnostic one-hot[3], not calibrated probabilities |
+| BaselineClassifier / models/baseline.py | `fit(X,y,sample_weight=None)`, `predict_proba(X) -> [N,3]`, `save(path)`, `load(path,trusted=True)` | Train median + all-column missing flags; all-missing median0; RF300/depth12/leaf5/balanced/seed42, bounded workers; trusted local joblib only |
+| LSTMClassifier / models/lstm.py | `forward(x:[B,100,16]) -> logits[B,3]` | Unidirectional1-layer hidden64, internal dropout0; last hidden→32/ReLU/head dropout0.3→3; reset state every window |
+| ModelTrainer / training/trainer.py | model, train_loader, val_loader, config → best state/history/validation predictions; `fit()` | Real Adam/backprop/clip1; val Macro F1/patience8, max50; require three train/val classes; never receives test loader |
+| ModelEvaluator / evaluation/evaluator.py | `evaluate(labels,probabilities,*,metadata,coverage)` → training metrics dict | Class order0/1/2, confusion/support/coverage; full-three-class macro null nếu thiếu truth class, supported macro separately named |
+| ModelBundle / models/bundle.py | `save(path,*,model,scaler,metadata)`, `load(path,trusted=True)`, `validate_schema(names,hashes)`, `predict_proba(scaled_x)` | Directory weights.pt/metadata.json/scaler.json/integrity.json; CPU weights_only state_dict load; strict16 names, mode and six hashes; no fallback |
+| Evaluation functions / evaluation/evaluator.py | module `evaluate(...,subject_ids,video_ids,min_video_coverage)` và `aggregate_folds()` → nested window/video/subject/bootstrap reports | Macro trên supported classes, explicit classes_present/full_class_coverage; khác contract training ModelEvaluator; không claim five-fold khi chỉ có outer0 |
+| Comparison cohorts / datasets/cohorts.py | `select_p0_cohort`, `select_p1_comparison_cohort`, `keep_after_calibration_prefix` | Intersection subject sets, explicit dropped/P1 coverage; matched prefix mask loại start < end; độc lập summaries để giữ derived producer fingerprint |
 
 ## Calibration, realtime và UI
+
+CalibrationManager, PredictionBuffer, PredictionSmoother và DrowsinessDetector dưới đây đã triển khai và có regression tests. Native `scripts.webcam_demo` vẫn là diagnostic profile/temporal/rules riêng; alerts, camera worker và Qt lifecycle chưa triển khai.
+
 | Module / file | Purpose, Input → Output; Interface | Dependencies và failure |
 |---|---|---|
 | CalibrationManager / calibration/manager.py | valid raw samples → profile/status; `start(timestamp_ms)`, `update(sample)`, `finish()`, `reset()` | Profile estimators ở calibration/profile.py, policy [11]; timeout fail; không fine-tune |

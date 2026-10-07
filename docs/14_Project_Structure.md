@@ -1,6 +1,6 @@
 # 14 — Cấu trúc project và config
 
-Cây dưới mô tả đích cuối cùng. Phase0–7 đã có config/contracts, acquisition/manifest, reader/detector/EAR/MAR/signed pose/quality/pipeline/builder và scripts tương ứng. Temporal/calibration/training/realtime/UI còn lại là thiết kế. Shared records/schema giữ nguyên. Phase7 mới xử lý3 selected originals để QC, chưa toàn snapshot34; xem roadmap và README cho hardware blockers/coverage.
+Cây dưới mô tả đích cuối cùng. Phase0–18 và replay core đã có CV/raw snapshot/audit, calibration, causal temporal/rules, shared derived/index/scaler, RF/LSTM bundle, realtime manager/buffer/detector và smoothing. P0outer0 đã train/cold-load; P1 cả5slot data-blocked, không có checkpoint. Alerts/Qt UI và hardware acceptance còn là thiết kế; aggregate evaluation API đã có nhưng chưa chạy đủ five-fold benchmark. Shared raw schema/config giữ nguyên;9zero-feature-coverage videos không bị xóa/nới quality.
 
 ```text
 project/
@@ -16,9 +16,9 @@ project/
     config.py              # Safe YAML, validation, paths project-relative
     preprocessing/video_reader.py, builder.py
     features/landmarks.py, eye.py, mouth.py, head_pose.py, pipeline.py, temporal.py
-    datasets/acquisition.py, manifest.py, splits.py, normalization.py, sequence.py, summaries.py
+    datasets/acquisition.py, manifest.py, splits.py, derived.py, normalization.py, sequence.py, summaries.py
     models/baseline.py, lstm.py, bundle.py
-    training/trainer.py
+    training/trainer.py, experiment.py
     evaluation/evaluator.py, replay.py
     calibration/profile.py, manager.py
     realtime/buffer.py, smoother.py, detector.py, camera_worker.py
@@ -26,13 +26,13 @@ project/
     ui/main_window.py
   scripts/
     check_environment.py, acquire_manifest.py, explore_dataset.py
-    preview_landmarks.py, preprocess.py, build_splits.py
+    preview_landmarks.py, preprocess.py, process_snapshot.py, audit_features.py, build_splits.py, build_derived.py
     train_baseline.py, train_lstm.py, evaluate.py, run_ablation.py
     webcam_demo.py, benchmark.py
   tests/                   # Synthetic deterministic fixtures
   models/assets/           # .task, canonical OBJ + URL/hash/license
   models/checkpoints/      # Không commit weights lớn
-  configs/preprocessing.yaml, training.yaml, realtime.yaml
+  configs/preprocessing.yaml, temporal.yaml, training.yaml, realtime.yaml
   runs/                    # Config/metrics/log từng experiment
   requirements.txt, requirements-dev.txt, requirements-lock.txt
   .gitignore, main.py      # main.py thuộc phase UI sau, chưa có
@@ -57,6 +57,12 @@ Resume/consumers phải check cả pair, complete-source flag + EOF/release, sig
 
 `data/processed/extraction_status.parquet` là status manifest riêng, chứa frozen source fields/status cùng extraction/audit status và snapshot/source/fingerprint provenance. Giữ nguyên bytes của `manifest.parquet`: `status=ok/error` chứng minh acquisition/source verification, không chứng minh feature quality. Raw feature schema và metadata-last publication không đổi; sidecar không phải calibrated sequences hoặc train/validation/test split.
 
+### Derived/model storage — Phase9–13
+`data/splits/outer_0..4.json` giữ roles, QC, profiles, reserved ranges và hashes. `data/processed/derived_<hash>/` giữ per-video float32[16]/bool[16] temporal Parquet cùng event receipts, shared accepted index/coverage và final dataset manifest. Source schema_version giữ `facial_features_v1`; ordered features và derived identity phân biệt layout mới. Row range `[start_row,end_row)` chứa100ticks; protocol mode/outer nằm ở manifest; nominal10s duration khác9.9s tick span.
+
+Scaler first10 channels fit valid unique accepted-train timesteps, không overlap-weighted; zero valid observations chặn fit, constant channel scale1; binary channels không scale. LSTM bundle là **directory** `weights.pt`, `metadata.json`, `scaler.json`, `integrity.json` trong mode-specific run, không alias `.pt` cho P1 thiếu dữ liệu. RF dùng trusted local joblib và summary schema. Checkpoints/profiles/cache/receipts giữ local, không commit; metadata/six-hash/mode mismatch bị reject.
+
+
 
 ## Config — một nơi cho mỗi giá trị
 YAML đọc bằng `safe_load`; validate ngay startup: FPS dương, window*FPS nguyên, stride≤window, threshold range đúng, paths tồn tại; schema/checkpoint mismatch báo lỗi. Runtime paths resolve từ project root hoặc config root thống nhất, không phụ thuộc shell cwd.
@@ -78,7 +84,8 @@ statistics_window_s: 60
 ```
 
 Parameter còn lại phải tập trung:
-- **preprocessing:** raw/output/manifest paths; camera K/distortion; blur/brightness/pose gates; landmark IDs; EAR epsilon; blink enter/exit/duration; MAR/yawn gates; perclos proxy threshold=0.20, minimum history=30, coverage=0.80. Quality gate ban đầu đo trên clip rồi freeze, không chọn con số blur universal chưa có sample.
+- **preprocessing:** frozen raw/output/manifest paths, camera K/distortion, blur/brightness/absolute pose gates, landmark IDs/EAR epsilon. Legacy event settings trong frozen YAML không đổi để giữ Phase8 provenance; temporal engine nhận duy nhất resolved policy từ `configs/temporal.yaml`.
+- **temporal:** native eye/mouth event thresholds/durations, PERCLOS proxy/history/coverage, hold/reset timing và diagnostic rule gates; resolved policy hash được bind vào derived/model metadata.
 - **training:** splits path/outer fold; calibration_mode P0/P1; window=10; stride=1; missing_ratio=0.20; max_gap_s=1; ordered features; seed=42; RF/LSTM parameters; device; batch/epochs/loss/optimizer/early stopping; experiment path.
 - **realtime:** camera index/resolution=640×480; model path; checkpoint mode; prediction interval=1; stale_ms=500; smoothing samples=3; calibration_seconds=30, min_valid_seconds=20, timeout_seconds=60; warning enter/exit thresholds và durations ở [12](12_Realtime_Inference.md); audio path/cooldown=15; mute; UI refresh=10 Hz; log retention.
 

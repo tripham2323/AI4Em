@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-10-07 — Tích hợp Phase16/17/18/21 với main Phase9–13
+
+- Giải conflict changelog, calibration/evaluation exports và integration tests; giữ đầy đủ API/test của cả offline evaluator và replay.
+- Nối CalibrationManager với estimator/QC policy Phase9, cho temporal extractor nhận profile lifecycle realtime, và cho ModelBundle cung cấp trực tiếp identity/schema/mode/features theo detector contract. Sửa realtime model path sang bundle directory.
+- Python3.12.13 environment riêng qua lockfile: dependency check sạch; calibration/temporal/model/detector/integration targeted89passed và full suite **720passed39.94s**. Dataset/human webcam/hardware acceptance không được suy từ unit tests.
+
 ## 2026-10-07 — Người 2 Phase21 replay/parity core
 
 - Thêm chronological `replay_session`: dùng timestamp nguồn làm current time, giữ mọi scheduled record kể cả NO_FACE/unavailable và từ chối nối source/timestamp/frame order sai.
@@ -24,6 +30,31 @@
 - Thêm `CalibrationManager` cho P0/P1 với state `IDLE/COLLECTING/COMPLETE/FAILED`, wall-clock 30s, tối thiểu 20s valid, timeout60s, retry/reset và profile freeze.
 - Phase9 profile estimator được inject thay vì viết lại trong realtime; manager từ chối profile sai mode/schema/asset/resolution và không P1→P0 fallback.
 - Thêm9 behavioral regressions cho completion, timeout, retry, hai baseline mắt khác nhau, profile mismatch, P0 explicit và timestamp strict. Đây là core đã implement; native webcam/profile-estimator integration còn phụ thuộc Phase9/13.
+
+## 2026-10-07 — Tích hợp GitHub main evaluation với Phase9–13
+
+- Giải hai add/add conflicts ở evaluator và evaluation tests; giữ cả strict training ModelEvaluator và main window/video/subject/bootstrap/fold APIs, cùng các consumer tests của hai phía.
+- Bổ sung cohort intersection/P1 coverage/prefix-mask helpers ở datasets/cohorts.py; migrate cohort tests sang module đúng trách nhiệm, không đổi summary algorithm/frozen producer fingerprints. Sửa ablation BLOCKED diagnostic: full-feature trainers có thật, nhưng variant-specific A–E integration chưa có.
+- **665tests passed28.12s**. Fresh-process RF3861test reload và LSTM64window reload đạt tolerances cũ; cả hai training reports giữ nguyên metrics và coverage5361scheduled. Real main evaluation CLI tạo metrics/predictions/provenance/confusion plot, đã xem plot; input chỉ accepted RF outer0, report đúng1/5fold và không claim full benchmark.
+- Dataset/model/run artifacts vẫn local; không đưa existing uncommitted Phase8 plan vào merge.
+
+## 2026-10-07 — Phase9–13 causal profiles/windows và real RF/LSTM
+
+- Five restricted official subject splits, train-only QC/population P0, pure P1 Alert-prefix estimators/reserved ranges. Exact14 frozen raw-producer inventory preserves Phase8 signature when adding temporal.py; actual unchanged34cached/resume và34complete/audit. No raw config/contracts/quality/source mutation/download.
+- Resolved temporal.yaml, incremental native events/60s integrals/causal10Hz, missing/startup abstention/diagnostic rules. Displayed04_0/1301raw/651temporal and rejected16_0/100raw/50temporal, journal replay/raw-cache parity/resources proved. Safe manual P1 CLI; camera access only, physical acceptance NOT_RUN.
+- Fingerprinted per-video derived cache/shared100-step index, valid-only duration summaries, train-median/missing-flag RF, null-aware metrics, unique accepted-train scaler/immutable SequenceDataset. Full rejected coverage/all5slot reports; P0outer3 validation missing0/2, outer4test only1; everyP1slot blocked.
+- Real P0outer0 RF val/test MacroF1=0.173248/0.238839; LSTM36epochs/best28 gives0.276877/0.230164 on matching windows. Train/val/test3863/2083/3861, test3861/5361scheduled. Weak development-subset models, not driving-safety ready. P1 CLIs actually block before fit/no checkpoints/aliases.
+- Trusted persistence/mode/six-hash binding; independent coldRF3861test atol1e-12/max3.33e-16 and coldLSTM64×100×16 atol1e-6/max0. Real49400unique-train scaler/64window arithmetic/3multi-video batches/150prediction metrics independently verified.
+- Regression/runtime fixes cover prefix lookahead, Parquet list-child normalization, CRC32 incorrectly used as source byte size, missing-duration union, closure-mean nonintersection, bundle cross-mode acceptance, immutable JSON and stale overlay between ticks. Actual portrait smoke also fixes cropped diagnostic/safety text and unknown-duration NaN display. Reviews clean; **604tests passed27.11s**. Private datasets/profiles/images/logs/weights remain local; Phase14+ aggregate evaluation/realtime/alerts/Qt UI not implemented.
+
+## 2026-10-07 — Phase8 frozen working snapshot và coverage audit
+
+- Thêm `src/preprocessing/snapshot.py`/`scripts/process_snapshot.py`: freeze manifest/YAML byte-copy, full membership/source/code/assets/dependency hashes và acquisition missing ledger; sequential per-video checkpoints, exact frozen provenance on resume, no config/quality changes.
+- Thêm `src/preprocessing/audit.py`/`scripts/audit_features.py`: independent streamed Parquet row/commit/source audit, frame-weighted video/subject/class coverage, explicit failures và separate `data/processed/extraction_status.parquet`; source manifest/acquisition states không đổi.
+- Actual34videos/12subjects xử lý34EOF pairs/379,361rows; interrupted run resume11cached+23completed,0failed,3844.775s cho lượt tiếp tục. Parquet+metadata16,417,481bytes; subsequent full resume34cached/13.026s và audit34complete/0failed. Snapshot SHA4861784fa5effd11ce00e5ca9c60822bf9f5b84c9d131d0932011d6fda9d5908; receipts/coverage ở `runs/phase8/`.
+- Both-eye coverage Alert57.13%, Low Vigilance63.74%, Drowsy65.35%;9videos0eye/mouth/pose-valid, subjects18/45 hoàn toàn0coverage. Không xóa rows/video hoặc nới gates để che bias. Phase9 cần eligibility/abstention, không coi raw extraction complete là training-ready.
+- Native permitted04_0/16_0 overlays inspected; native blank CLI45nullrows, nonzero source failure không lấy old pair thành công, restored cache và other-cwd audit verified. Final441tests passed16.42s; fixes/reviews cover freeze parse/copy race, returned-fingerprint drift, yaw±90, first frame0 và project-root program paths. Orphan interrupted stage đã dọn.
+- Không tải thêm11missing, split/calibrate/train, hoặc claim human webcam physical acceptance. Run artifacts/dataset giữ local theo GitHub publication policy; existing unrelated team/Git changes giữ nguyên.
 
 ## 2026-10-07 — Team handoff và GitHub publication policy
 

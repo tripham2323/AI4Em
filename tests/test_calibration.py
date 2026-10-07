@@ -3,6 +3,7 @@ import math
 import pytest
 
 from src.calibration.manager import CalibrationManager, CalibrationState
+from src.calibration.profile import estimate_profile, fit_qc_policy
 from src.contracts import CalibrationProfile, FeatureSample
 
 
@@ -49,7 +50,7 @@ def estimator(samples, **context):
     assert samples
     return profile(
         mode=context["mode"],
-        schema=context["schema_version"],
+        schema="facial_features_v1",
         asset=context["asset_sha256"],
         size=context["image_size"],
     )
@@ -194,3 +195,20 @@ def test_calibration_cannot_join_sources_or_reuse_frame_indices():
     )
     with pytest.raises(ValueError, match="frame indices"):
         calibration.update(repeated_frame)
+
+
+def test_manager_accepts_phase9_estimator_and_frozen_qc_policy():
+    training_rows = [sample(timestamp) for timestamp in range(0, 30_001, 100)]
+    calibration = CalibrationManager(
+        mode="P1",
+        schema_version="facial_features_v1",
+        asset_sha256="asset",
+        image_size=(640, 480),
+        profile_estimator=estimate_profile,
+        profile_estimator_kwargs={"qc_policy": fit_qc_policy(training_rows)},
+    )
+    calibration.start(0)
+    for timestamp in range(100, 30_001, 100):
+        result = calibration.update(sample(timestamp))
+    assert result.state is CalibrationState.COMPLETE
+    assert result.profile is not None and result.profile.valid

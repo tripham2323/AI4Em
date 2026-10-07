@@ -11,7 +11,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import StrEnum
 from numbers import Integral, Real
-from typing import Protocol
+from typing import Any, Protocol
 
 from src.contracts import CalibrationProfile, FeatureSample
 
@@ -41,9 +41,9 @@ class ProfileEstimator(Protocol):
         samples: Sequence[FeatureSample],
         *,
         mode: str,
-        schema_version: str,
         asset_sha256: str,
         image_size: tuple[int, int],
+        **kwargs: Any,
     ) -> CalibrationProfile: ...
 
 
@@ -102,6 +102,7 @@ class CalibrationManager:
         asset_sha256: str,
         image_size: tuple[int, int],
         profile_estimator: ProfileEstimator | None = None,
+        profile_estimator_kwargs: dict[str, Any] | None = None,
         population_profile: CalibrationProfile | None = None,
         calibration_seconds: Real = 30,
         min_valid_seconds: Real = 20,
@@ -135,6 +136,7 @@ class CalibrationManager:
         self.asset_sha256 = asset_sha256
         self.image_size = _valid_image_size(image_size)
         self._profile_estimator = profile_estimator
+        self._profile_estimator_kwargs = dict(profile_estimator_kwargs or {})
         self._population_profile = population_profile
         self._max_sample_age_ms = int(max_sample_age_ms)
         self.reset()
@@ -236,9 +238,9 @@ class CalibrationManager:
             profile = self._profile_estimator(
                 tuple(self._samples),
                 mode=self.mode,
-                schema_version=self.schema_version,
                 asset_sha256=self.asset_sha256,
                 image_size=self.image_size,
+                **self._profile_estimator_kwargs,
             )
             self._profile = self._validate_profile(profile)
         # Phase 9 is an injected boundary; any estimator failure must become a

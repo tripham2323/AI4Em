@@ -211,7 +211,7 @@ def test_p1_completion_resets_history_before_warmup_and_prediction():
 
     def estimate_profile(samples, **context):
         return CalibrationProfile("P1", True, .3, .28, .1, 0., 0., 0.,
-            context["schema_version"], context["asset_sha256"], context["image_size"], {})
+            "facial_features_v1", context["asset_sha256"], context["image_size"], {})
 
     calibration = CalibrationManager(mode="P1", schema_version="facial_features_v1",
         asset_sha256="asset", image_size=(2, 2), profile_estimator=estimate_profile,
