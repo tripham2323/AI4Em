@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 from PySide6.QtCore import QCoreApplication
 
-from src.contracts import DetectionResult, FramePacket, SystemStatus
+from src.contracts import DetectionResult, FramePacket, SystemStatus, TemporalSample
 from src.realtime.camera_worker import CameraWorker, _LatestFrameSlot
 
 
@@ -63,6 +63,44 @@ def test_worker_uses_injected_detector_and_emits_owned_preview_and_finished():
     assert detector.closed
     assert finished == [True]
     assert statuses == [(SystemStatus.NO_FACE, "warming")]
+    app.processEvents()
+
+
+def test_snapshot_does_not_invent_coverage_before_a_sequence_window_exists():
+    app = QCoreApplication.instance() or QCoreApplication([])
+    packet = FramePacket(np.zeros((3, 4, 3), dtype=np.uint8), 1_000, 0, "camera:0")
+
+    class Reader:
+        def iter_camera(self, camera_index, target_fps, *, width, height, stop_event):
+            yield packet
+
+    class Detector:
+        last_feature_sample = None
+        last_temporal_sample = TemporalSample(
+            1_000, np.zeros(16, dtype=np.float32), np.ones(4, dtype=np.bool_), 0, {}
+        )
+
+        def reset_session(self):
+            pass
+
+        def process(self, received):
+            return DetectionResult(
+                None, None, SystemStatus.WARMING_UP,
+                {"reason": "sequence window not ready"}, "COMPLETE",
+            )
+
+        def close(self):
+            pass
+
+    worker = CameraWorker(0, Detector, reader_factory=Reader)
+    snapshots = []
+    statuses = []
+    worker.snapshot_ready.connect(snapshots.append)
+    worker.status_changed.connect(lambda *args: statuses.append(args))
+    worker.start()
+
+    assert "coverage" not in snapshots[0].temporal_display
+    assert statuses == [(SystemStatus.WARMING_UP, "sequence window not ready")]
     app.processEvents()
 
 

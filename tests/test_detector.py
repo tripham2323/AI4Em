@@ -120,10 +120,14 @@ def test_last_feature_sample_tracks_processed_packet_and_clears_on_reset_close()
     detector.process(packet(0))
     assert detector.last_feature_sample is not None
     assert detector.last_feature_sample.timestamp_ms == 0
+    assert detector.last_temporal_sample is not None
+    assert detector.last_temporal_sample.timestamp_ms == 0
     detector.reset_session()
     assert detector.last_feature_sample is None
+    assert detector.last_temporal_sample is None
     detector.close()
     assert detector.last_feature_sample is None
+    assert detector.last_temporal_sample is None
 
 
 def test_replay_can_supply_source_time_without_using_wall_clock():
@@ -131,6 +135,14 @@ def test_replay_can_supply_source_time_without_using_wall_clock():
     result = detector.process(packet(0), current_time_ms=0)
     assert result.system_status is SystemStatus.WARMING_UP
     assert pipeline.processed == 1
+
+
+def test_results_expose_calibration_progress_and_message_for_ui():
+    detector, _, _, _ = make_detector()
+    clock.current = 0
+    result = detector.process(packet(0))
+    assert result.quality["calibration_progress"] == 1.0
+    assert result.quality["calibration_msg"] == "population profile ready"
 
 
 def test_no_face_is_immediate_and_long_gap_resets_history():

@@ -87,11 +87,17 @@ class DrowsinessDetector:
         self._last_prediction_ms: int | None = None
         self._unreliable_since_ms: int | None = None
         self._last_feature_sample: FeatureSample | None = None
+        self._last_temporal_sample: TemporalSample | None = None
 
     @property
     def last_feature_sample(self) -> FeatureSample | None:
         """Raw feature output for parity/evidence from the most recent packet."""
         return self._last_feature_sample
+
+    @property
+    def last_temporal_sample(self) -> TemporalSample | None:
+        """Latest causal grid sample for read-only UI diagnostics."""
+        return self._last_temporal_sample
 
     def process(self, packet: FramePacket, *, current_time_ms: int | None = None) -> DetectionResult:
         if self._closed:
@@ -142,6 +148,7 @@ class DrowsinessDetector:
         temporal_samples = self.temporal.update(sample, self.calibration.profile)
         for temporal_sample in temporal_samples:
             self.buffer.append(temporal_sample)
+            self._last_temporal_sample = temporal_sample
 
         if not sample.face_detected:
             return self._result(SystemStatus.NO_FACE, sample=sample, reason="no face")
@@ -166,7 +173,12 @@ class DrowsinessDetector:
             raw_prediction=raw,
             smoothed_prediction=smoothed,
             system_status=SystemStatus.READY,
-            quality={"current_valid": True, "window": window.quality, "frame_age_ms": age_ms},
+            quality={
+                "current_valid": True,
+                "window": window.quality,
+                "frame_age_ms": age_ms,
+                **self._calibration_quality(),
+            },
             calibration_status=self.calibration.state.value,
         )
 
@@ -209,7 +221,7 @@ class DrowsinessDetector:
         reason: str,
         frame_age_ms: int | None = None,
     ) -> DetectionResult:
-        quality = {"reason": reason}
+        quality = {"reason": reason, **self._calibration_quality()}
         if sample is not None:
             quality.update(
                 face_detected=sample.face_detected,
@@ -221,6 +233,13 @@ class DrowsinessDetector:
         if frame_age_ms is not None:
             quality["frame_age_ms"] = frame_age_ms
         return DetectionResult(None, None, status, quality, self.calibration.state.value)
+
+    def _calibration_quality(self) -> dict[str, Any]:
+        snapshot = self.calibration.snapshot
+        return {
+            "calibration_progress": 1.0 if snapshot.state is CalibrationState.COMPLETE else snapshot.progress,
+            "calibration_msg": snapshot.reason,
+        }
 
     def reset_session(self) -> None:
         if self._closed:
@@ -234,9 +253,11 @@ class DrowsinessDetector:
         self._last_prediction_ms = None
         self._unreliable_since_ms = None
         self._last_feature_sample = None
+        self._last_temporal_sample = None
 
     def close(self) -> None:
         if not self._closed:
             self._closed = True
             self._last_feature_sample = None
+            self._last_temporal_sample = None
             self.pipeline.close()

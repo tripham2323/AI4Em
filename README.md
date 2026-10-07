@@ -2,6 +2,14 @@
 
 Tài liệu thiết kế đã được chuyển vào **[docs/README.md](docs/README.md)**. Roadmap triển khai: [docs/16_Development_Roadmap.md](docs/16_Development_Roadmap.md).
 
+## Trạng thái `main` hiện tại
+
+- Regression suite sau tích hợp evaluation/realtime/UI: **748 tests** (chạy lại trước khi phát hành).
+- `python main.py --fixture` chạy UI không cần camera/model; production startup kiểm tra đủ model bundle, preprocessing/temporal config và split/profile trước khi mở camera.
+- Runtime mặc định dùng **P0** tại `configs/realtime.yaml`; cần đặt trusted bundle tại `models/checkpoints/lstm_p0/`. Checkpoint không commit Git và hiện không đi kèm source tree.
+- Production đã nối detector factory, `CameraWorker` trong `QThread`, Start/Stop theo session, calibration retry, mute, feature/temporal snapshot và `warning.wav`. Nghiệm thu camera/loa thật vẫn chưa chạy.
+- Checkout local có thể không chứa đủ private dataset/run artifacts. Không train nếu readiness/provenance validation báo thiếu source, snapshot hoặc manifest; không sửa hash/path trong frozen artifact để ép chạy.
+
 ## Phase 0–13
 **Trạng thái nghiệm thu:** Phase 0 đạt. Code Phase 1–2 đã có nhưng dataset mới **34/45 video, 12/15 subjects, 8,206,607,880 bytes (~7.64 GiB)**. Drive chặn 11 file bằng “Quota exceeded”; **Phase 1–2 chưa đạt full acceptance**. Exploration chạy trên dữ liệu thật và exit 1 đúng để chặn báo thành công sai. Xem [Dataset Access](docs/Dataset_Access.md) và [changelog](docs/CHANGELOG.md).
 
@@ -19,7 +27,7 @@ Phase3–8 đã có CV/raw pipeline, signed pose và frozen quality. **Phase8 x�
 
 ## Phase9–13 — kết quả đã chạy
 
-Đã có five restricted official splits, train-only QC/P0 và pure P1 profiles, causal native events/10Hz temporal, shared window index, RF, unique-train scaler và LSTM trainer/trusted bundle. Sau tích hợp calibration/realtime/smoothing/replay vào main, **720 tests passed trên Python 3.12.13**. P0outer0 dùng3863train/2083validation/3861test windows; test accepted3861/5361scheduled. Metrics chỉ có điều kiện trên windows đạt gate của development subset, không phải full UTA benchmark.
+Đã có five restricted official splits, train-only QC/P0 và pure P1 profiles, causal native events/10Hz temporal, shared window index, RF, unique-train scaler và LSTM trainer/trusted bundle. Sau tích hợp calibration/realtime/smoothing/replay/UI vào main, suite hiện tại có **748 tests**. P0outer0 lịch sử dùng3863train/2083validation/3861test windows; test accepted3861/5361scheduled. Metrics chỉ có điều kiện trên windows đạt gate của development subset, không phải full UTA benchmark.
 
 | P0 outer0, seed42 | Validation Macro F1 | Test Macro F1 | Selection |
 |---|---:|---:|---|
@@ -28,7 +36,7 @@ Phase3–8 đã có CV/raw pipeline, signed pose và frozen quality. **Phase8 x�
 
 Independent fresh-process reload đã đạt: RF full3861test probabilities atol1e-12; LSTM real64×100×16 batch atol1e-6. LSTM không thắng RF trên test; cả hai hiện có chất lượng thấp, **không dùng cho an toàn lái xe**.
 
-**P1 cả5outer slots bị data gate chặn** do profile QC/camera provenance và thiếu accepted validation/test support. Actual RF/LSTM P1outer0 CLIs trả blocked/nonzero, không tạo checkpoint và không fallback P0. P0outer3 thiếu validation classes; outer4 chỉ có Low Vigilance ở test. Đã tích hợp evaluation từ main: window/video/subject reports, bootstrap, fold aggregation, ablation collector và external evaluator. Calibration manager, realtime buffer/detector, smoothing và replay core đã tích hợp với profile/temporal/model bundle Phase9–13; native webcam acceptance vẫn chưa chạy. A–E variant-specific training vẫn BLOCKED; audio/Qt UI chưa triển khai.
+**P1 cả5outer slots bị data gate chặn** do profile QC/camera provenance và thiếu accepted validation/test support. Actual RF/LSTM P1outer0 CLIs trả blocked/nonzero, không tạo checkpoint và không fallback P0. P0outer3 thiếu validation classes; outer4 chỉ có Low Vigilance ở test. Đã tích hợp evaluation từ main: window/video/subject reports, bootstrap, fold aggregation, ablation collector và external evaluator. Calibration manager, realtime buffer/detector, smoothing, alerts, CameraWorker và Qt UI đã có code tích hợp; native webcam/loa acceptance vẫn chưa chạy. A–E variant-specific training chưa có kết quả thực nghiệm đầy đủ.
 
 ### Lệnh offline — PowerShell tại project root
 ```powershell
@@ -74,15 +82,18 @@ Chạy tại project root, không dùng Python global/Conda mặc định:
 .venv/Scripts/python.exe -m scripts.explore_dataset
 .venv/Scripts/python.exe -m scripts.check_environment --sample-video data/raw/uta_rldd/04/0.mp4
 .venv/Scripts/python.exe -m pytest -q
+.venv/Scripts/python.exe -m scripts.check_training_readiness
 .venv/Scripts/python.exe -m scripts.preview_landmarks --video data/raw/uta_rldd/04/0.mp4 --seconds 12
 .venv/Scripts/python.exe -m scripts.preview_landmarks --camera 0 --seconds 45
 
 ### Desktop UI — Phase 20
 ```powershell
 .venv/Scripts/python.exe main.py --config configs/realtime.yaml
-# Run với test fixture UI vì CameraWorker Phase 19 chưa implement:
+# Smoke UI không cần checkpoint/camera:
 .venv/Scripts/python.exe main.py --fixture
 ```
+
+Lệnh production đầu tiên chỉ chạy khi `models/checkpoints/lstm_p0/` là bundle P0 hợp lệ và khớp split/profile/temporal hashes. Thiếu artifact sẽ dừng ở startup với lỗi rõ ràng; không tự đổi sang P1 hoặc dùng model ngẫu nhiên.
 
 ### Raw feature extraction — Phase6/7
 ```powershell

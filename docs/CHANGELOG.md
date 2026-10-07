@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-10-08 — Main integration repair và training readiness
+
+- Sửa ba regression sau merge: evaluation CLI dùng default video coverage0.5, test ablation không còn giả định trainer chưa tồn tại, và JSON tiếng Việt luôn đọc UTF-8 trên Windows. Full suite đạt **748 passed**.
+- Thêm production detector factory: kiểm tra bundle/split/QC/temporal identities, tạo P0/P1 calibration, scaler transformer, temporal buffer, smoother và raw feature pipeline từ frozen artifacts.
+- Nối `main.py` với `CameraWorker` trong một `QThread` mới cho từng session; Start/Stop, retry calibration, mute, status/error, cleanup và restart không còn chạy blocking trên UI thread.
+- Worker chuyển raw `FeatureSample` và temporal PERCLOS/coverage sang `UiSnapshot`; UI dùng asset `warning.wav` hiện có cho command `drowsy`/`strong`, không còn tìm hai file không tồn tại.
+- `configs/realtime.yaml` mặc định P0 và khai báo rõ preprocessing/temporal/profile/model artifacts. Production dừng sớm nếu thiếu trusted P0 bundle; fixture UI headless exit0.
+- Thêm `scripts.check_training_readiness` và regressions để báo source/raw pair/snapshot/derived portability/checkpoint blockers mà không bypass provenance.
+- Training hiện bị chặn rõ ràng khi thiếu/non-portable frozen snapshot, derived manifest hoặc trusted checkpoint; recovery artifacts tiếp tục giữ local và không đưa vào Git.
+
 ## 2026-10-07 — Phase 20/21 Desktop UI và Startup
 
 - Cài đặt `MainWindow` bằng PySide6 hiển thị video, system status, mode P1/P0, EAR/MAR/PERCLOS/Pose, và smoothed probabilities.
