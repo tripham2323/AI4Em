@@ -3,6 +3,7 @@ camera_index: 0
 camera_width: 640
 camera_height: 480
 calibration_mode: P1
+rule_mode: temporal
 model_path: models/checkpoints/lstm_p1.pt
 device: cpu
 prediction_interval_s: 1

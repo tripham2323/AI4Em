@@ -20,11 +20,12 @@ ACQUISITION_PLAN_PATH = PROJECT_ROOT / 'data/acquisition/uta_subset_plan.json'
 
 
 def extraction_program_hashes() -> dict:
-    paths = list((PROJECT_ROOT / 'src/features').glob('*.py'))
-    paths.extend(PROJECT_ROOT / name for name in (
-        'src/preprocessing/builder.py', 'src/preprocessing/video_reader.py',
-        'src/config.py', 'src/contracts.py', 'src/datasets/manifest.py',
-        'src/datasets/acquisition.py', 'scripts/preprocess.py'))
+    paths = [PROJECT_ROOT / name for name in (
+        'src/features/__init__.py', 'src/features/eye.py', 'src/features/head_pose.py',
+        'src/features/landmarks.py', 'src/features/mouth.py', 'src/features/pipeline.py',
+        'src/features/quality.py', 'src/preprocessing/builder.py',
+        'src/preprocessing/video_reader.py', 'src/config.py', 'src/contracts.py',
+        'src/datasets/manifest.py', 'src/datasets/acquisition.py', 'scripts/preprocess.py')]
     return {path.relative_to(PROJECT_ROOT).as_posix(): digest_file(path)[0]
             for path in sorted(paths)}
 
