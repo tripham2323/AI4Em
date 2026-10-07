@@ -9,6 +9,12 @@
 - Cung cấp flag `--fixture` cho mục đích test UI layout, render, timer, và smoke test widget mà không cần `CameraWorker` (Phase 19 từ Team 3 chưa hoàn thành).
 - Chuẩn hóa contract nhận/gửi tín hiệu luồng an toàn qua PySide6 Signals. Đã cập nhật README hướng dẫn chạy desktop UI.
 
+## 2026-10-07 — Tích hợp Phase16/17/18/21 với main Phase9–13
+
+- Giải conflict changelog, calibration/evaluation exports và integration tests; giữ đầy đủ API/test của cả offline evaluator và replay.
+- Nối CalibrationManager với estimator/QC policy Phase9, cho temporal extractor nhận profile lifecycle realtime, và cho ModelBundle cung cấp trực tiếp identity/schema/mode/features theo detector contract. Sửa realtime model path sang bundle directory.
+- Python3.12.13 environment riêng qua lockfile: dependency check sạch; calibration/temporal/model/detector/integration targeted89passed và full suite **720passed39.94s**. Dataset/human webcam/hardware acceptance không được suy từ unit tests.
+
 ## 2026-10-07 — Người 2 Phase21 replay/parity core
 
 - Thêm chronological `replay_session`: dùng timestamp nguồn làm current time, giữ mọi scheduled record kể cả NO_FACE/unavailable và từ chối nối source/timestamp/frame order sai.

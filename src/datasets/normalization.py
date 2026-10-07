@@ -23,19 +23,25 @@ def scaler_hash(scaler: dict) -> str:
 
 
 def validate_scaler(scaler: dict, feature_names: tuple[str, ...] = FEATURE_NAMES) -> None:
-    if tuple(feature_names) != FEATURE_NAMES or tuple(scaler.get('feature_names', ())) != tuple(feature_names):
+    names = tuple(feature_names)
+    if not names or len(set(names)) != len(names) or not all(isinstance(n, str) and n for n in names):
+        raise ValueError('feature names must be nonempty unique strings')
+    if tuple(scaler.get('feature_names', ())) != names:
         raise ValueError('scaler feature order mismatch')
+    if any(name not in FEATURE_NAMES for name in names):
+        raise ValueError('scaler contains unknown feature')
     if scaler.get('hash') != scaler_hash(scaler):
         raise ValueError('scaler hash mismatch')
+    continuous = [name for name in names if name in FEATURE_NAMES[:10]]
+    expected = len(continuous)
     for key in ('means', 'scales', 'counts'):
         array = np.asarray(scaler.get(key, []), dtype=float)
-        if array.shape != (10,) or not np.isfinite(array).all():
+        if array.shape != (expected,) or not np.isfinite(array).all():
             raise ValueError(f'invalid scaler {key}')
         if key != 'means' and np.any(array <= 0):
             raise ValueError(f'invalid scaler {key}')
         if key == 'counts' and np.any(array != np.floor(array)):
             raise ValueError('scaler counts must be integers')
-
 
 def validated_arrays(values, validity) -> tuple[np.ndarray, np.ndarray]:
     """Validate pre-imputation data without requiring invalid slots to be finite."""
@@ -59,7 +65,8 @@ def validated_arrays(values, validity) -> tuple[np.ndarray, np.ndarray]:
 
 
 def fit_scaler(train_unique_timesteps: pd.DataFrame, feature_names: tuple[str, ...]) -> dict:
-    if tuple(feature_names) != FEATURE_NAMES:
+    names = tuple(feature_names)
+    if not names or len(set(names)) != len(names) or any(name not in FEATURE_NAMES for name in names):
         raise ValueError('feature order mismatch')
     frame = train_unique_timesteps
     required = {'video_id', 'segment_id', 'timestamp_ms', 'values', 'validity'}
@@ -75,18 +82,19 @@ def fit_scaler(train_unique_timesteps: pd.DataFrame, feature_names: tuple[str, .
         validity = np.asarray(row.validity)
         if key in seen:
             old_values, old_validity = seen[key]
-            if not (np.array_equal(values, old_values, equal_nan=True) and
-                    np.array_equal(validity, old_validity)):
+            if not (np.array_equal(values, old_values, equal_nan=True) and np.array_equal(validity, old_validity)):
                 raise ValueError(f'conflicting duplicate train timestep {key}')
         else:
             seen[key] = (values, validity)
             unique.append((values, validity))
     if not unique:
         raise ValueError('blocked scaler: zero valid train observations')
-    values, validity = validated_arrays(np.stack([row[0] for row in unique]),
-                                        np.stack([row[1] for row in unique]))
+    values, validity = validated_arrays(np.stack([row[0] for row in unique]), np.stack([row[1] for row in unique]))
     means, scales, counts = [], [], []
-    for channel, name in enumerate(feature_names[:10]):
+    for name in names:
+        channel = FEATURE_NAMES.index(name)
+        if channel >= 10:
+            continue
         valid = values[validity[:, channel], channel]
         if len(valid) == 0:
             raise ValueError(f'blocked scaler: zero valid train observations for {name}')
@@ -96,23 +104,29 @@ def fit_scaler(train_unique_timesteps: pd.DataFrame, feature_names: tuple[str, .
         means.append(mean)
         scales.append(scale if scale > 0 else 1.)
         counts.append(len(valid))
-    scaler = dict(feature_names=list(feature_names), means=means, scales=scales, counts=counts)
+    scaler = dict(feature_names=list(names), means=means, scales=scales, counts=counts)
     scaler['hash'] = scaler_hash(scaler)
     return scaler
 
-
 def transform_values(values, validity, scaler: dict) -> np.ndarray:
-    validate_scaler(scaler)
+    names = tuple(scaler.get('feature_names', FEATURE_NAMES))
+    validate_scaler(scaler, names)
     values, validity = validated_arrays(values, validity)
-    output = np.zeros(values.shape, dtype=np.float32)
-    continuous = np.zeros(values[:, :10].shape, dtype=np.float64)
-    np.subtract(values[:, :10], np.asarray(scaler['means']), out=continuous,
-                where=validity[:, :10])
-    np.divide(continuous, np.asarray(scaler['scales']), out=continuous,
-              where=validity[:, :10])
-    with np.errstate(over='ignore'):
-        output[:, :10] = continuous
-    output[:, 10:] = values[:, 10:]
+    output = np.zeros((values.shape[0], len(names)), dtype=np.float32)
+    means = iter(np.asarray(scaler['means'], dtype=np.float64))
+    scales = iter(np.asarray(scaler['scales'], dtype=np.float64))
+    for out_col, name in enumerate(names):
+        channel = FEATURE_NAMES.index(name)
+        if channel < 10:
+            mean = float(next(means)); scale = float(next(scales))
+            valid = validity[:, channel]
+            transformed = np.zeros(len(values), dtype=np.float64)
+            np.subtract(values[:, channel], mean, out=transformed, where=valid)
+            np.divide(transformed, scale, out=transformed, where=valid)
+            output[:, out_col] = transformed.astype(np.float32)
+        else:
+            output[:, out_col] = values[:, channel].astype(np.float32)
     if not np.isfinite(output).all():
         raise ValueError('normalization produced nonfinite float32 values')
     return output
+

@@ -83,6 +83,29 @@ class ModelBundle:
         self.metadata = metadata
         self.path = path
 
+    @property
+    def model_id(self) -> str:
+        """Stable prediction identity tied to the serialized weights."""
+        configured = self.metadata.get("model_id")
+        if isinstance(configured, str) and configured:
+            return configured
+        weights = self.path / "weights.pt"
+        if not weights.is_file():
+            raise ValueError("Bundle weights are unavailable for model identity")
+        return _sha256(weights)
+
+    @property
+    def feature_names(self) -> tuple[str, ...]:
+        return tuple(self.metadata["feature_names"])
+
+    @property
+    def schema_version(self) -> str:
+        return str(self.metadata["schema_version"])
+
+    @property
+    def calibration_mode(self) -> str:
+        return str(self.metadata["mode"])
+
     @classmethod
     def save(cls, path: str | Path, *, model: LSTMClassifier, scaler: dict,
              metadata: dict) -> Path:

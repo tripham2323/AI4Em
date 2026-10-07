@@ -1,6 +1,6 @@
 # 14 — Cấu trúc project và config
 
-Cây dưới mô tả đích cuối cùng. Phase0–13 đã có CV/raw snapshot/audit, pure calibration, causal temporal/rules, shared derived/index/scaler, RF và LSTM trainer/bundle. P0outer0 đã train/cold-load; P1 cả5slot data-blocked, không có checkpoint. Realtime manager/buffer/smoother/alerts/Qt UI và aggregate evaluation còn là thiết kế. Shared raw schema/config giữ nguyên;9zero-feature-coverage videos không bị xóa/nới quality. Xem roadmap/README cho metrics có điều kiện và hardware acceptance pending.
+Cây dưới mô tả đích cuối cùng. Phase0–18 và replay core đã có CV/raw snapshot/audit, calibration, causal temporal/rules, shared derived/index/scaler, RF/LSTM bundle, realtime manager/buffer/detector và smoothing. P0outer0 đã train/cold-load; P1 cả5slot data-blocked, không có checkpoint. Alerts/Qt UI và hardware acceptance còn là thiết kế; aggregate evaluation API đã có nhưng chưa chạy đủ five-fold benchmark. Shared raw schema/config giữ nguyên;9zero-feature-coverage videos không bị xóa/nới quality.
 
 ```text
 project/

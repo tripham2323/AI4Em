@@ -33,7 +33,7 @@ Case PERCLOS 10 giây chỉ kiểm tra phép tích phân bên trong, không yêu
 Replay dùng timestamp nguồn, không dùng tốc độ đọc file. Cùng frame stream/profile/checkpoint phải tạo feature và prediction giống trong sai số số thực cho phép; lịch UI có thể khác nhưng class/alerts theo thời gian nguồn phải khớp. Sai khác là lỗi pipeline, không giải thích chung bằng “khác vì realtime”.
 
 ## Lệnh bàn giao hiện tại
-Chạy `.venv/Scripts/python.exe -m pytest -q --tb=short` và offline/native commands trong [README](../README.md): `scripts.build_splits`, `scripts.build_derived`, `scripts.train_baseline`, `scripts.train_lstm`, `scripts.webcam_demo`. Phase9–13 đã có real windows/models/cold reload; `main.py`, realtime manager/audio/Qt UI và full-fold evaluation vẫn thuộc phase sau. Unit suite không mở camera/download; physical acceptance log riêng.
+Chạy `.venv/Scripts/python.exe -m pytest -q --tb=short` và offline/native commands trong [README](../README.md): `scripts.build_splits`, `scripts.build_derived`, `scripts.train_baseline`, `scripts.train_lstm`, `scripts.webcam_demo`. Phase9–13 đã có real windows/models/cold reload; calibration/realtime/smoothing/replay core có deterministic regressions. `main.py`, audio/Qt UI và full-fold runtime evaluation vẫn thuộc phase sau. Unit suite không mở camera/download; physical acceptance log riêng.
 
 Không cần unit test GUI chi tiết. Không test source text, tên file hay mock forwarding để chứng minh AI hoạt động. Không download dataset trong unit suite. Ghi rõ test skip do hardware/access; không coi skip là evidence pass realtime.
 
@@ -63,4 +63,3 @@ Không cần unit test GUI chi tiết. Không test source text, tên file hay mo
 - Camera access only: initial60faces brightness-rejected; final56no-face/30temporal, both abstain/released/no image. Correct camera:0 identity; physical Alert calibration/blinks/long closure/mouth/turn/cover/return/disconnect still **NOT_RUN** until safe user observation.
 - P0outer0 RF actual fit/evaluation, fresh-process full3861test reload max3.33e-16/atol1e-12;150real predictions independently recomputed. Sequence proof:49400unique train rows,64window exact arithmetic/3multi-video batches/all3labels. `runs/phase11/`, `runs/phase12/`.
 - P0outer0 LSTM36epochs/selected28; real64test windows cold-load exact/atol1e-6 with six hashes/mode. RF/LSTM test rows match; current conditional MacroF1s low, no safety/generalization promise. Both P1outer0 CLIs blocked/nonzero/no checkpoint. No Phase14 full-fold/bootstrap/clinical/false-alarm or GPU claims.
-

@@ -265,6 +265,16 @@ def test_resolved_policy_hash_covers_defaults_and_rule_thresholds():
     assert TemporalFeatureExtractor(profile(), config()).config_sha256 == temporal_config_hash(config())
 
 
+def test_realtime_profile_argument_can_rebind_only_without_active_history():
+    first = profile()
+    second = replace(first, ear_left_baseline=first.ear_left_baseline + 0.01)
+    engine = TemporalFeatureExtractor(first, config())
+    engine.update(raw(0), second)
+    assert engine.profile == second
+    with pytest.raises(ValueError, match="active temporal segment"):
+        engine.update(raw(100), first)
+
+
 @pytest.mark.parametrize('setting', [
     {'sequence_fps': 20}, {'max_sample_age_ms': 200}, {'blink_enter': .8},
     {'blink_min_s': 1.}, {'perclos_min_history_s': 61.},
