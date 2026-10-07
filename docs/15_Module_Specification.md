@@ -71,7 +71,7 @@ Sampling chọn frame đầu tiên mỗi bucket `floor((source_ms-origin_ms)*tar
 
 ## Calibration, realtime và UI
 
-Các modules dưới đây chưa triển khai; native `scripts.webcam_demo` chỉ dùng pure profile/temporal/rules với structured receipts, không thay thế realtime/Qt lifecycle.
+CalibrationManager, PredictionBuffer, PredictionSmoother và DrowsinessDetector dưới đây đã triển khai và có regression tests. Native `scripts.webcam_demo` vẫn là diagnostic profile/temporal/rules riêng; alerts, camera worker và Qt lifecycle chưa triển khai.
 
 | Module / file | Purpose, Input → Output; Interface | Dependencies và failure |
 |---|---|---|

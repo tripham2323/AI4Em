@@ -117,8 +117,21 @@ class TemporalFeatureExtractor:
         self._pending_events: list[dict[str, Any]] = []
         self._durations = {'eye_valid': 0., 'mouth_valid': 0., 'pose_valid': 0., 'closed_proxy': 0.}
 
-    def update(self, sample: FeatureSample) -> list[TemporalSample]:
-        """Process one strictly increasing native timestamp within each source."""
+    def update(
+        self,
+        sample: FeatureSample,
+        profile: CalibrationProfile | None = None,
+    ) -> list[TemporalSample]:
+        """Process one native sample, optionally binding a new session profile.
+
+        Offline consumers bind the profile in the constructor. Realtime
+        calibration may provide the completed profile on each call; changing it
+        is accepted only while the extractor has no active history.
+        """
+        if profile is not None and profile != self.profile:
+            if self._latest is not None:
+                raise ValueError("cannot change calibration profile during an active temporal segment")
+            self.profile = profile
         if self._latest is not None:
             if sample.source_id == self._source and sample.timestamp_ms <= self._latest.timestamp_ms:
                 raise ValueError('native timestamp must strictly increase within a source')

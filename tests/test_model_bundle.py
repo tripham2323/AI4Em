@@ -80,6 +80,10 @@ def test_bundle_cpu_cold_reload_and_prediction_parity(tmp_path):
         ModelBundle.load(path)
     restored = ModelBundle.load(path, trusted=True)
     restored.validate_schema(NAMES, metadata["hashes"])
+    assert restored.feature_names == NAMES
+    assert restored.schema_version == "temporal_v1"
+    assert restored.calibration_mode == "P1"
+    assert len(restored.model_id) == 64
     np.testing.assert_allclose(restored.predict_proba(x), expected, rtol=1e-6, atol=1e-7)
     assert next(restored.model.parameters()).device.type == "cpu"
     assert restored.scaler == scaler

@@ -1,5 +1,36 @@
 # Changelog
 
+## 2026-10-07 — Tích hợp Phase16/17/18/21 với main Phase9–13
+
+- Giải conflict changelog, calibration/evaluation exports và integration tests; giữ đầy đủ API/test của cả offline evaluator và replay.
+- Nối CalibrationManager với estimator/QC policy Phase9, cho temporal extractor nhận profile lifecycle realtime, và cho ModelBundle cung cấp trực tiếp identity/schema/mode/features theo detector contract. Sửa realtime model path sang bundle directory.
+- Python3.12.13 environment riêng qua lockfile: dependency check sạch; calibration/temporal/model/detector/integration targeted89passed và full suite **720passed39.94s**. Dataset/human webcam/hardware acceptance không được suy từ unit tests.
+
+## 2026-10-07 — Người 2 Phase21 replay/parity core
+
+- Thêm chronological `replay_session`: dùng timestamp nguồn làm current time, giữ mọi scheduled record kể cả NO_FACE/unavailable và từ chối nối source/timestamp/frame order sai.
+- Mỗi replay record giữ tám giá trị `FeatureSample` (giá trị không hữu hạn thành null) và năm validity mask; trace phải khớp source/frame/timestamp của packet hiện tại.
+- Thêm `compare_replays` với tolerance khai báo trước; so feature/validity, identity/status/class/raw+smooth probability và ghi rõ missing/unexpected timestamp thay vì loại khỏi report.
+- Detector nhận optional `current_time_ms` chỉ cho replay, live mặc định vẫn dùng perf_counter clock. Native parity với Phase9/10/13 bundle thật còn là integration acceptance chưa thể chạy trong snapshot hiện tại.
+
+## 2026-10-07 — Người 2 Phase18 prediction smoothing core
+
+- Thêm `PredictionSmoother` mean-N probability vectors (mặc định3), chưa đủ mẫu trả null, gap `>=2s`/reset xóa lịch sử và không majority-vote class.
+- Reject prediction invalid/NaN/sai shape/sai tổng/model-mix; detector giữ raw ngay và chỉ xuất smooth sau ba prediction hợp lệ.
+- Thêm behavioral regressions cho averaging/expiry/invalid/model identity và detector integration; classifier metrics vẫn dùng raw, realtime policy mới dùng smooth.
+
+## 2026-10-07 — Người 2 Phase17 realtime buffer/detector core
+
+- Thêm `PredictionBuffer`: cửa sổ fixed-length theo ordered features, reset theo segment/gap, reject current-invalid và missing ratio, chỉ xuất `SequenceWindow` hữu hạn sau transformer/scaler được inject.
+- Thêm `DrowsinessDetector`: orchestration raw pipeline→calibration→temporal→buffer→model, cadence1s, stale/no-face/current-invalid status, P0/P1 mode/schema/order checks, reset/close và probability validation.
+- Thêm13 behavioral regressions cho100-step window, missing20%, gap/segment, cadence, stale, no-face reset, P1 startup và invalid model output. Core chưa được gọi native-complete cho đến khi Phase9/10/12/13 cung cấp estimator/temporal/scaler/bundle thật.
+
+## 2026-10-07 — Người 2 Phase16 calibration lifecycle core
+
+- Thêm `CalibrationManager` cho P0/P1 với state `IDLE/COLLECTING/COMPLETE/FAILED`, wall-clock 30s, tối thiểu 20s valid, timeout60s, retry/reset và profile freeze.
+- Phase9 profile estimator được inject thay vì viết lại trong realtime; manager từ chối profile sai mode/schema/asset/resolution và không P1→P0 fallback.
+- Thêm9 behavioral regressions cho completion, timeout, retry, hai baseline mắt khác nhau, profile mismatch, P0 explicit và timestamp strict. Đây là core đã implement; native webcam/profile-estimator integration còn phụ thuộc Phase9/13.
+
 ## 2026-10-07 — Tích hợp GitHub main evaluation với Phase9–13
 
 - Giải hai add/add conflicts ở evaluator và evaluation tests; giữ cả strict training ModelEvaluator và main window/video/subject/bootstrap/fold APIs, cùng các consumer tests của hai phía.
