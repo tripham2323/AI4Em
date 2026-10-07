@@ -93,11 +93,16 @@ class DrowsinessDetector:
         """Raw feature output for parity/evidence from the most recent packet."""
         return self._last_feature_sample
 
-    def process(self, packet: FramePacket) -> DetectionResult:
+    def process(self, packet: FramePacket, *, current_time_ms: int | None = None) -> DetectionResult:
         if self._closed:
             raise RuntimeError("DrowsinessDetector is closed")
         self._last_feature_sample = None
-        now_ms = int(self._clock_ms())
+        if current_time_ms is None:
+            now_ms = int(self._clock_ms())
+        elif isinstance(current_time_ms, bool) or not isinstance(current_time_ms, Integral) or current_time_ms < 0:
+            raise ValueError("current_time_ms must be a nonnegative integer")
+        else:
+            now_ms = int(current_time_ms)
         age_ms = now_ms - packet.timestamp_ms
         if age_ms < 0:
             raise ValueError("capture timestamp uses a different or future clock")

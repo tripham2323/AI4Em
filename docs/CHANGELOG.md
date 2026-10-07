@@ -9,6 +9,13 @@
 - Cung cấp flag `--fixture` cho mục đích test UI layout, render, timer, và smoke test widget mà không cần `CameraWorker` (Phase 19 từ Team 3 chưa hoàn thành).
 - Chuẩn hóa contract nhận/gửi tín hiệu luồng an toàn qua PySide6 Signals. Đã cập nhật README hướng dẫn chạy desktop UI.
 
+## 2026-10-07 — Người 2 Phase21 replay/parity core
+
+- Thêm chronological `replay_session`: dùng timestamp nguồn làm current time, giữ mọi scheduled record kể cả NO_FACE/unavailable và từ chối nối source/timestamp/frame order sai.
+- Mỗi replay record giữ tám giá trị `FeatureSample` (giá trị không hữu hạn thành null) và năm validity mask; trace phải khớp source/frame/timestamp của packet hiện tại.
+- Thêm `compare_replays` với tolerance khai báo trước; so feature/validity, identity/status/class/raw+smooth probability và ghi rõ missing/unexpected timestamp thay vì loại khỏi report.
+- Detector nhận optional `current_time_ms` chỉ cho replay, live mặc định vẫn dùng perf_counter clock. Native parity với Phase9/10/13 bundle thật còn là integration acceptance chưa thể chạy trong snapshot hiện tại.
+
 ## 2026-10-07 — Người 2 Phase18 prediction smoothing core
 
 - Thêm `PredictionSmoother` mean-N probability vectors (mặc định3), chưa đủ mẫu trả null, gap `>=2s`/reset xóa lịch sử và không majority-vote class.

@@ -126,6 +126,13 @@ def test_last_feature_sample_tracks_processed_packet_and_clears_on_reset_close()
     assert detector.last_feature_sample is None
 
 
+def test_replay_can_supply_source_time_without_using_wall_clock():
+    detector, pipeline, _, _ = make_detector(now=lambda: 99_999)
+    result = detector.process(packet(0), current_time_ms=0)
+    assert result.system_status is SystemStatus.WARMING_UP
+    assert pipeline.processed == 1
+
+
 def test_no_face_is_immediate_and_long_gap_resets_history():
     detector, pipeline, temporal, _ = make_detector()
     clock.current = 0
