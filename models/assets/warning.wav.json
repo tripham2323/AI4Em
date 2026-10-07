@@ -1,0 +1,11 @@
+{
+  "asset": "warning.wav",
+  "purpose": "Neutral two-tone drowsiness alert chime; no speech or third-party samples.",
+  "source": "Generated deterministically by scripts/generate_warning_asset.py using Python standard library math and wave.",
+  "license": "CC0-1.0",
+  "sample_rate_hz": 24000,
+  "channels": 1,
+  "sample_format": "signed 16-bit PCM",
+  "duration_seconds": 0.44,
+  "sha256": "02059f6ef5d096bd897081e8154b604a87c0d6472f89d0578d2032c27995e336"
+}
