@@ -3,7 +3,7 @@
 Subcommands
   freeze   write an immutable runs/ablation_<id>/matrix.json from configs/training.yaml
   collect  validate evaluation runs against the frozen matrix; write results.csv, paired.json, not_run.json
-  train    BLOCKED: model training (Phase 13 trainer) is not part of this repo yet
+  train    BLOCKED: variant-specific training is not connected to the full-feature trainer
 Nothing here fabricates results: experiments without runs are listed as not run.
 """
 from __future__ import annotations
@@ -127,10 +127,10 @@ def freeze(run_id: str, config_path: Path, seeds: Sequence[int] | None, out_root
 
 
 def run_experiment(spec: Mapping[str, Any]) -> None:
-    """Training/retraining each variant needs the Phase 13 trainer, which does not exist yet."""
-    raise Blocked(f"cannot run {spec.get('experiment_id')}: the LSTM/RF trainer (Phase 11/13) and frozen splits "
-                  "are not in this repository; train each variant with its own scaler/checkpoint, then run "
-                  "scripts.evaluate and `run_ablation collect`")
+    """Each ablation requires its own feature-set-specific scaler and model training."""
+    raise Blocked(f"cannot run {spec.get('experiment_id')}: variant-specific trainer integration is missing. "
+                  "Phase11/13 CLIs train the fixed full-feature baseline, not the A–E ablation matrix; "
+                  "train each variant with its own scaler/checkpoint before evaluation and collect")
 
 
 # ------------------------------------------------------------------ collect
@@ -259,7 +259,7 @@ def build_parser() -> argparse.ArgumentParser:
     c.add_argument("--out-root", type=Path, default=Path("runs"))
     c.add_argument("--n-boot", type=int, default=1000)
     c.add_argument("--seed", type=int, default=0)
-    t = sub.add_parser("train", help="BLOCKED until the trainer exists")
+    t = sub.add_parser("train", help="BLOCKED until variant-specific training is connected")
     t.add_argument("--run-id", required=True)
     return p
 

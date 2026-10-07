@@ -64,8 +64,10 @@ Sampling chọn frame đầu tiên mỗi bucket `floor((source_ms-origin_ms)*tar
 | BaselineClassifier / models/baseline.py | `fit(X,y,sample_weight=None)`, `predict_proba(X) -> [N,3]`, `save(path)`, `load(path,trusted=True)` | Train median + all-column missing flags; all-missing median0; RF300/depth12/leaf5/balanced/seed42, bounded workers; trusted local joblib only |
 | LSTMClassifier / models/lstm.py | `forward(x:[B,100,16]) -> logits[B,3]` | Unidirectional1-layer hidden64, internal dropout0; last hidden→32/ReLU/head dropout0.3→3; reset state every window |
 | ModelTrainer / training/trainer.py | model, train_loader, val_loader, config → best state/history/validation predictions; `fit()` | Real Adam/backprop/clip1; val Macro F1/patience8, max50; require three train/val classes; never receives test loader |
-| ModelEvaluator / evaluation/evaluator.py | `evaluate(labels,probabilities,*,metadata,coverage)` → metrics dict | Class order0/1/2, confusion/support/coverage; undefined metrics null with reasons; supported macro separately named. Fold/video/subject aggregation/plots remain Phase14 |
+| ModelEvaluator / evaluation/evaluator.py | `evaluate(labels,probabilities,*,metadata,coverage)` → training metrics dict | Class order0/1/2, confusion/support/coverage; full-three-class macro null nếu thiếu truth class, supported macro separately named |
 | ModelBundle / models/bundle.py | `save(path,*,model,scaler,metadata)`, `load(path,trusted=True)`, `validate_schema(names,hashes)`, `predict_proba(scaled_x)` | Directory weights.pt/metadata.json/scaler.json/integrity.json; CPU weights_only state_dict load; strict16 names, mode and six hashes; no fallback |
+| Evaluation functions / evaluation/evaluator.py | module `evaluate(...,subject_ids,video_ids,min_video_coverage)` và `aggregate_folds()` → nested window/video/subject/bootstrap reports | Macro trên supported classes, explicit classes_present/full_class_coverage; khác contract training ModelEvaluator; không claim five-fold khi chỉ có outer0 |
+| Comparison cohorts / datasets/cohorts.py | `select_p0_cohort`, `select_p1_comparison_cohort`, `keep_after_calibration_prefix` | Intersection subject sets, explicit dropped/P1 coverage; matched prefix mask loại start < end; độc lập summaries để giữ derived producer fingerprint |
 
 ## Calibration, realtime và UI
 

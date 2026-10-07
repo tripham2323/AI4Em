@@ -1,8 +1,8 @@
-"""Phase 15 cohort selection (src/datasets/summaries.py, Người 1 part)."""
+"""Matched subject cohorts and reserved-prefix exclusion for comparisons."""
 import numpy as np
 import pytest
 
-from src.datasets import summaries as sm
+from src.datasets import cohorts as sm
 
 
 def test_p0_cohort_is_the_intersection_and_reports_who_was_dropped():
@@ -29,3 +29,11 @@ def test_prefix_windows_are_removed_for_matched_d_comparison():
     assert keep.tolist() == [False, False, True, True]  # subject b has no prefix: untouched
     with pytest.raises(ValueError):
         sm.keep_after_calibration_prefix(["a"], [1, 2], {})
+
+
+def test_foreign_valid_profiles_do_not_inflate_p1_coverage():
+    out = sm.select_p1_comparison_cohort(["a", "b"], ["a", "outside"])
+    assert out["cohort"] == ["a"] and out["p1_blocked_subjects"] == ["b"]
+    assert out["full_cohort_p1_coverage"] == 0.5
+    empty = sm.select_p1_comparison_cohort([], ["outside"])
+    assert empty["cohort"] == [] and empty["full_cohort_p1_coverage"] is None

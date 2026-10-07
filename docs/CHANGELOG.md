@@ -1,6 +1,5 @@
 # Changelog
 
-
 ## 2026-10-07 — Phase 20/21 Desktop UI và Startup
 
 - Cài đặt `MainWindow` bằng PySide6 hiển thị video, system status, mode P1/P0, EAR/MAR/PERCLOS/Pose, và smoothed probabilities.
@@ -34,6 +33,13 @@
 - Thêm `CalibrationManager` cho P0/P1 với state `IDLE/COLLECTING/COMPLETE/FAILED`, wall-clock 30s, tối thiểu 20s valid, timeout60s, retry/reset và profile freeze.
 - Phase9 profile estimator được inject thay vì viết lại trong realtime; manager từ chối profile sai mode/schema/asset/resolution và không P1→P0 fallback.
 - Thêm9 behavioral regressions cho completion, timeout, retry, hai baseline mắt khác nhau, profile mismatch, P0 explicit và timestamp strict. Đây là core đã implement; native webcam/profile-estimator integration còn phụ thuộc Phase9/13.
+
+## 2026-10-07 — Tích hợp GitHub main evaluation với Phase9–13
+
+- Giải hai add/add conflicts ở evaluator và evaluation tests; giữ cả strict training ModelEvaluator và main window/video/subject/bootstrap/fold APIs, cùng các consumer tests của hai phía.
+- Bổ sung cohort intersection/P1 coverage/prefix-mask helpers ở datasets/cohorts.py; migrate cohort tests sang module đúng trách nhiệm, không đổi summary algorithm/frozen producer fingerprints. Sửa ablation BLOCKED diagnostic: full-feature trainers có thật, nhưng variant-specific A–E integration chưa có.
+- **665tests passed28.12s**. Fresh-process RF3861test reload và LSTM64window reload đạt tolerances cũ; cả hai training reports giữ nguyên metrics và coverage5361scheduled. Real main evaluation CLI tạo metrics/predictions/provenance/confusion plot, đã xem plot; input chỉ accepted RF outer0, report đúng1/5fold và không claim full benchmark.
+- Dataset/model/run artifacts vẫn local; không đưa existing uncommitted Phase8 plan vào merge.
 
 ## 2026-10-07 — Phase9–13 causal profiles/windows và real RF/LSTM
 
