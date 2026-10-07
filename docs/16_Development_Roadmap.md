@@ -2,7 +2,7 @@
 
 Roadmap dùng để giao từng phase cho coding agent: **“Implement Phase 6 according to 16_Development_Roadmap.md”**. Mọi phase tuân theo contract [15](15_Module_Specification.md), config [14](14_Project_Structure.md) và nguồn [03–04](03_Research_Background.md).
 
-**Phase0 đạt runtime verification; code Phase1–2 đã triển khai nhưng full acceptance chưa đạt vì34/45 video (Drive quota). Phase3–5 đã có reader/detector/EAR/MAR và runtime proof trên clip/camera; confirmed talking, human webcam transitions và physical disconnect chưa quan sát.** Xem kết quả Phase4/5 bên dưới, [báo cáo Phase3 lịch sử](Phase3_Report.md), [changelog](CHANGELOG.md), [Dataset Access](Dataset_Access.md) và reports trong `runs/`. Acceptance Phase4/5 có phần đã chạy/phần blocked được ghi riêng; Phase6–24 vẫn là mục tiêu thiết kế. Chưa có classifier buồn ngủ đã train.
+**Phase0 đạt runtime verification; full acquisition Phase1–2 chưa đạt vì34/45 video (Drive quota). Phase3–7 đã có reader/detector/EAR/MAR/signed pose, frozen quality, shared pipeline và runtime proof; Phase8 đã extraction/audit34/34 working videos,379,361rows và verified resume34cached.** Live signs, confirmed talking/physical occlusion, human webcam transitions/disconnect vẫn chưa quan sát. Xem execution records bên dưới, [báo cáo Phase3 lịch sử](Phase3_Report.md), [changelog](CHANGELOG.md), [Dataset Access](Dataset_Access.md) và reports trong `runs/`. Phase9–24 còn là thiết kế; chưa trained classifier. Extraction complete không đồng nghĩa training-ready vì quality coverage/rejections.
 
 **Phạm vi development user đã chốt sau Phase3:** tiếp tục với **34 video hiện có/12subjects**, không đợi45/180 hoặc tự tải thêm. Acquisition45 và11 missing vẫn là ledger/gate nguồn lịch sử; không đổi chúng thành thành công. Phase8/9 dùng working snapshot đã freeze, cardinality thực tế và protocol eligibility; không ép36/12/12 hay9/3/3. Subject51 thiếu Alert làm P1 abstain; fold5 P1 không có accepted subject, phải báo blocked/undefined. Tham chiếu04/09/10/11.
 
@@ -168,6 +168,22 @@ Final suite **394 passed in12.01s**; hai scoped reviews clean sau sửa preview 
 - **Expected result:** feature files + coverage/error report từng video/lớp. Lưu bằng chứng acceptance trong run log để teammate kiểm tra lại.
 - **Possible problems:** Disk full, video dài decode chậm, quality lệch lớp gây selection bias.
 
+### Thực thi 2026-10-07 — Phase8
+- Frozen working snapshot34/12 SHA`4861784fa5effd11ce00e5ca9c60822bf9f5b84c9d131d0932011d6fda9d5908`; source membership, bytes/config/artifacts/code/dependencies và missing11 giữ nguyên. Snapshot YAML/manifest byte-copy dưới `runs/phase8/snapshot/`; `data/processed/manifest.parquet` không sửa. Extraction/audit trạng thái nằm trong `data/processed/extraction_status.parquet`, không trộn source verification với feature quality.
+- Runner sequential sau interruption:11verified cached+23new completed,0failed/0pending;34EOF/released pairs,379,361rows. Native resumed extraction3844.775s,16,417,481bytes Parquet+metadata (16,196,973+220,508). Đây là wall time lượt tiếp tục, không bao gồm toàn bộ interrupted run trước đó hoặc Phase7 cached extraction.
+- Independent audit reopen tất cả pairs và mọi rows: source/program/signature/hash/schema/time/index/null/masks/labels/counts/release đạt34/34. Actual runner rerun34/34cached trong13.026s; audit sau resume cũng34complete/0failed. Reports `extraction_report.json`, `extraction_audit.json`, current `report.json`/`audit.json`, `resume_report.json`, `coverage.csv`, `acceptance_summary.json`.
+- Coverage dưới đây là frame-weighted trên tất cả audited emitted rows, không mean(video ratios) hoặc physiological accuracy:
+
+| Weak class | Videos | Rows | Both-eye valid | Mouth valid | Pose valid |
+|---|---:|---:|---:|---:|---:|
+| Alert /0 |11|120,880|57.13%|57.90%|65.54%|
+| Low Vigilance /1 |12|134,521|63.74%|64.03%|64.85%|
+| Drowsy /2 |11|123,960|65.35%|67.69%|68.07%|
+
+- Nine0eye/mouth/pose-valid videos:16_0,16_5,18_0,18_10,18_5,31_10,45_0,45_10,45_5. Subjects18/45 toàn bộ0feature coverage; brightness rejection chiếm105,730events (reasons có thể chồng lấp). Giữ mọi null row/source/label, không nới policy hoặc dùng weak classes để tune. Phase9 phải ghi eligibility/abstention và selection bias; các nguồn này không được gọi training-ready.
+- Actual04_0 optical/pose boundary overlays và16_0 dark-source overlays đã xem, masks/replay khớp; chỉ lưu ảnh có publication permission. Native3×15FPS blank CLI chứng minh45nullrows, failure exit1 không bị old pair che, restored3cached resume. Final code suite441passed16.42s; independent reviews sạch sau provenance/range/frame0/cwd fixes. Orphan interrupted16_5 staging đã dọn; không phát sinh webcam test yêu cầu user cho offline phase này. Physical acceptance Phase6/7 vẫn pending.
+
+
 ## Phase 9 — Subject splitting và profile policy
 
 - **Objective / Goal:** Không leakage; khóa P0/P1 trước training.
@@ -182,12 +198,19 @@ Final suite **394 passed in12.01s**; hai scoped reviews clean sau sửa preview 
 - **Expected result:** Subject-disjoint splits theo snapshot hiện có, profiles/reserved ranges và support/coverage report; không claim full60 benchmark. Bằng chứng acceptance trong run log.
 - **Possible problems:** Không tìm được official IDs không tự gọi custom là official; không dùng toàn Alert video test làm baseline.
 
+### Thực thi 2026-10-07 — Phase9
+- Real CLI tạo đủ `data/splits/outer_0..4.json` cho34sources/12subjects, official roles có train/val/test cardinalities6/3/3,6/3/3,7/2/3,9/1/2,8/3/1. Train-only q01/q99 QC/P0 và per-subject P1 prefix/profile maps, reserved ranges/hashes/reasons giữ riêng; source manifest/raw pairs không đổi.
+- P1 cả5slots blocked ở mức profile support: camera/provenance khác giữa các clip (04:848×480/1280×720/480×848;10 và17 cũng đổi resolution/orientation), train-QC bounds/valid duration và51missingAlert. P0 profile support không đồng nghĩa window eligibility. Không nới gates hoặc đổi P1 thành P0.
+- Independent review phát hiện unreserved endpoint tác động valid-duration/mouth QC; đã giới hạn cả hai vào selected prefix. Regression fail-before/pass-after,26profile/split tests passed; corrected real CLI publication exit0.14raw-producer inventory explicit giữ freeze cũ: subsequent actual runner34cached và audit34complete/0failed.
+- Receipts: `runs/phase9/corrected_splits_*`, `post_temporal_raw_resume_*`, `post_temporal_raw_audit_*`; split/profile software gate đạt, window/model gates tiếp tục ở Phase10–13.
+
+
 ## Phase 10 — Rule-based baseline
 
 - **Objective / Goal:** MVP 1 chạy có thời gian và uncertainty.
 - **Prerequisites / Dependencies:** Phases 4–9; webcam có thể dùng P0/P1 profile đã chuẩn.
 - **Files to create:** src/features/temporal.py; src/models/rules.py; scripts/webcam_demo.py; tests/test_temporal.py, tests/test_rules.py
-- **Files to modify:** configs/preprocessing.yaml event/perclos gates; configs/realtime.yaml rule mode.
+- **Files to modify:** configs/realtime.yaml rule mode; event/perclos settings ở new configs/temporal.yaml, không mutate frozen preprocessing YAML.
 - **Functions/classes:** TemporalFeatureExtractor.update/reset; RuleBasedClassifier.predict(temporal_sample).
 - **Input → Output:** FeatureSample/profile → causal events/PERCLOS; EAR-only và temporal rule predictions.
 - **Technical tasks / Implementation notes:** Áp dụng06 và08; PERCLOS proxy include blinks, dt cap100ms, history60s; no-face không Drowsy. CLI/OpenCV demo tạm, chưa GUI final.
@@ -196,19 +219,41 @@ Final suite **394 passed in12.01s**; hai scoped reviews clean sau sửa preview 
 - **Expected result:** causal events/PERCLOS; EAR-only và temporal rule predictions. Lưu bằng chứng acceptance trong run log để teammate kiểm tra lại.
 - **Possible problems:** Blink FPS thấp; duration bị nối qua mất face; rule thresholds chưa validated.
 
+**Execution2026-10-07 — software/replay passed; physical pending:**
+- Clear04_0 bounded65s:1301raw/651temporal, exact journal event/rule replay và raw timestamps/frames/masks khớp cache, numeric error≤1e-5. Rejected16_0 bounded5s:100face-present raw/50temporal, brightness reject100/100, cả hai rules abstain. Actual overlays inspected; capture/model/window release.
+- Camera access cuối56no-face/30temporal, camera:0 identity, no image saved, both rules abstain/released; lượt trước60faces nhưng brightness QC reject toàn bộ. Calibration/blink/turn/occlusion/disconnect physical acceptance vẫn NOT_RUN. Safe P1 command/checklist ở README/saved plan; logs `runs/phase10/`.
+- Immutable quality JSON và current profile-relative pose display gate đã reproduce/fix: giữa native150ms/grid100ms, stale valid class/reason không hiển thị khi current calibrated pose invalid.
+
+
 ## Phase 11 — Random Forest baseline
 
 - **Objective / Goal:** MVP 2: ML ba class và subject-independent evaluation.
 - **Prerequisites / Dependencies:** Phases 8–10.
 - **Files to create:** src/datasets/summaries.py; src/datasets/sequence.py window-index functions; src/models/baseline.py; scripts/train_baseline.py; tests/test_summaries.py
 - **Files to modify:** configs/training.yaml RF; src/evaluation/evaluator.py bản metrics core.
-- **Functions/classes:** build_window_index(...); summarize_window(...); BaselineClassifier.fit/predict_proba; evaluate_classification(...).
+- **Functions/classes:** build_window_index(...); summarize_window(...); BaselineClassifier.fit/predict_proba; ModelEvaluator.evaluate(...).
 - **Input → Output:** Temporal samples/splits → summary table, RF artifact, val/test metrics.
 - **Technical tasks / Implementation notes:** Cùng10s/stride1 và quality gate ở07; train-only median imputer + missing flags. RF300 trees; optional XGBoost sau. Không đưa ID/label vào X.
 - **Tests:** No test fit, class order0/1/2, duration/rate đúng; actual train một fold và save/load predictions so khớp.
 - **Acceptance criteria / Definition of Done:** MVP 2 có Macro F1/per-class/confusion/support/coverage và split hash; không chỉ accuracy; cold reload chạy.
 - **Expected result:** summary table, RF artifact, val/test metrics. Lưu bằng chứng acceptance trong run log để teammate kiểm tra lại.
 - **Possible problems:** Overlapping windows tạo thống kê quá lạc quan; class imbalance sau reject.
+
+**Execution2026-10-07 — real RF/reference passed; P1 blocked:**
+- Final34-source per-video caches/shared index giữ complete rejected/scheduled support:
+
+| Outer | P0 accepted | P0 fit status | P1 accepted | P1 fit status |
+|---|---:|---|---:|---|
+| 0 | 9807 | Eligible | 3310 | Blocked: zero validation/test |
+| 1 | 9412 | Eligible | 4477 | Blocked: zero test |
+| 2 | 9794 | Eligible | 4477 | Blocked: zero validation |
+| 3 | 9795 | Blocked: validation missing0/2 | 4477 | Blocked: zero validation/test |
+| 4 | 9836 | Eligible; test only class1 | 4477 | Blocked: zero test |
+
+- P0outer0 actual RF300/depth12/leaf5/balanced/seed42:3863train/2083validation/3861test. Val MacroF1=0.1732475745, test=0.2388390634; test3861accepted/5361scheduled/1500rejected. Conditional development-subset metrics, not full benchmark.
+- Fresh-process full3861test reload max error3.33e-16/atol1e-12; independent150real predictions verify metrics arithmetic. Artifacts `runs/phase11/rf_p0_outer0_seed42_verified/`; all-slot reports `runs/phase11/derived/P0.json`, `P1.json`.
+- Actual P1outer0 RF blocked/nonzero before fit/no model; everyP1slot lacks eligible support under fixed camera/profile/QC policy. No tuning/gate relaxation or Phase14 aggregation claim.
+
 
 ## Phase 12 — Build sequence dataset
 
@@ -224,6 +269,11 @@ Final suite **394 passed in12.01s**; hai scoped reviews clean sau sửa preview 
 - **Expected result:** float32[100,16], label, metadata riêng. Lưu bằng chứng acceptance trong run log để teammate kiểm tra lại.
 - **Possible problems:** Lặp window làm fit scaler bias; nhầm timestep với frame native.
 
+**Execution2026-10-07 — real sequence/scaler passed:**
+- P0outer0 scaler fit49400unique accepted-train timesteps; valid-only counts/means/std independently match derived rows. Full64×100×16 float32 batch matches independent normalization exactly, invalid continuous0 and six flags unchanged.
+- Three representative additional batches cover12accepted train videos/all3labels with subject/ID/start-time metadata outside X. `runs/phase12/p0_outer0_batch_parity.json`; no raw video opened by dataset/scaler. All source/partial/blocked support remains explicit.
+
+
 ## Phase 13 — Train LSTM
 
 - **Objective / Goal:** Train và export model temporal thật.
@@ -237,6 +287,12 @@ Final suite **394 passed in12.01s**; hai scoped reviews clean sau sửa preview 
 - **Acceptance criteria / Definition of Done:** Checkpoint chạy được trên batch test lạnh, đủ metadata; report val metrics và epoch selected, không hứa hơn RF.
 - **Expected result:** best checkpoint/history/scaler/config. Lưu bằng chứng acceptance trong run log để teammate kiểm tra lại.
 - **Possible problems:** Overfit60 subjects, silent feature-order mismatch, dropout LSTM1 layer không tác dụng.
+
+**Execution2026-10-07 — real P0 LSTM/reload passed; P1 blocked:**
+- CPU4threads/workers0, seed42/default architecture/Adam/config:36epochs, patience8, selected28 by val MacroF1=0.2768768474. Test=0.2301639471 on matching RF timestamps/support; does not beat RF0.2388390634. Models not driving-safety ready.
+- Bundle/config/scaler/split/history/selection freeze before test. Fresh-process CPU weights_only load validates mode/six hashes; real64×100×16 probabilities max error0/atol1e-6. `runs/phase13/lstm_p0_outer0_seed42/`.
+- Actual P1outer0 LSTM blocked/nonzero/no checkpoint or P0 alias. Required regression fixes/reviews clean; final full suite604passed27.11s. Phase14 all-fold/bootstrap evaluation remains separate.
+
 
 ## Phase 14 — Model evaluation
 

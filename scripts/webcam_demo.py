@@ -201,14 +201,21 @@ def render_overlay(packet, sample, pipeline, calibration: str, latest, predictio
     if latest is not None:
         summary = latest.event_summaries
         rows.append(f'history {summary["history_s"]:.1f}s | coverage {summary["coverage"]:.1%} | ready {summary["perclos_ready"]}')
-        rows.append(f'closure {summary["closure_elapsed_s"]:.2f}s | mouth candidate {summary["yawn_elapsed_s"]:.2f}s')
+        durations = [f'{value:.2f}s' if value is not None and math.isfinite(value) else 'N/A'
+                     for value in (summary['closure_elapsed_s'], summary['yawn_elapsed_s'])]
+        rows.append(f'closure {durations[0]} | mouth candidate {durations[1]}')
         rows.append(f'grid timestamp {latest.timestamp_ms} ms (causal, not future)')
     scale = max(1., max(packet.image_bgr.shape[:2]) / 640)
     bottom = overlay.shape[0] - round(12 * scale)
     for index, text in enumerate(reversed(rows)):
+        thickness = max(1, round(scale))
+        font_scale = .4 * scale
+        text_width = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, font_scale, thickness)[0][0]
+        available = max(1, overlay.shape[1] - round(16 * scale))
+        font_scale *= min(1., .98 * available / max(1, text_width))
         cv2.putText(overlay, text, (round(8 * scale), bottom - round(index * 22 * scale)),
-                    cv2.FONT_HERSHEY_SIMPLEX, .4 * scale, (0, 255, 255),
-                    max(1, round(scale)), cv2.LINE_AA)
+                    cv2.FONT_HERSHEY_SIMPLEX, font_scale, (0, 255, 255),
+                    thickness, cv2.LINE_AA)
     return overlay
 
 
