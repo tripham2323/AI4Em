@@ -13,6 +13,7 @@ from src.contracts import (
 )
 from src.realtime.buffer import PredictionBuffer
 from src.realtime.detector import DrowsinessDetector
+from src.realtime.smoother import PredictionSmoother
 
 FEATURES = tuple(f"f{i}" for i in range(16))
 
@@ -254,3 +255,18 @@ def test_other_invalid_model_outputs_become_error(probabilities):
         result = detector.process(packet(timestamp))
     assert result.system_status is SystemStatus.ERROR
     assert result.raw_prediction is None
+
+
+def test_detector_exposes_raw_immediately_and_smooth_only_after_three_predictions():
+    detector, _, _, _ = make_detector()
+    detector.smoother = PredictionSmoother(samples=3, expiry_ms=2000)
+    predictions = []
+    for timestamp in range(0, 12_000, 100):
+        clock.current = timestamp
+        result = detector.process(packet(timestamp))
+        if result.raw_prediction is not None:
+            predictions.append(result)
+    assert len(predictions) == 3
+    assert predictions[0].smoothed_prediction is None
+    assert predictions[1].smoothed_prediction is None
+    assert predictions[2].smoothed_prediction is not None

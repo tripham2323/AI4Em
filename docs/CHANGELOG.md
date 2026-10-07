@@ -9,6 +9,12 @@
 - Cung cấp flag `--fixture` cho mục đích test UI layout, render, timer, và smoke test widget mà không cần `CameraWorker` (Phase 19 từ Team 3 chưa hoàn thành).
 - Chuẩn hóa contract nhận/gửi tín hiệu luồng an toàn qua PySide6 Signals. Đã cập nhật README hướng dẫn chạy desktop UI.
 
+## 2026-10-07 — Người 2 Phase18 prediction smoothing core
+
+- Thêm `PredictionSmoother` mean-N probability vectors (mặc định3), chưa đủ mẫu trả null, gap `>=2s`/reset xóa lịch sử và không majority-vote class.
+- Reject prediction invalid/NaN/sai shape/sai tổng/model-mix; detector giữ raw ngay và chỉ xuất smooth sau ba prediction hợp lệ.
+- Thêm behavioral regressions cho averaging/expiry/invalid/model identity và detector integration; classifier metrics vẫn dùng raw, realtime policy mới dùng smooth.
+
 ## 2026-10-07 — Người 2 Phase17 realtime buffer/detector core
 
 - Thêm `PredictionBuffer`: cửa sổ fixed-length theo ordered features, reset theo segment/gap, reject current-invalid và missing ratio, chỉ xuất `SequenceWindow` hữu hạn sau transformer/scaler được inject.
