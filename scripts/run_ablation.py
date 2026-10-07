@@ -3,7 +3,8 @@
 Subcommands
   freeze   write an immutable runs/ablation_<id>/matrix.json from configs/training.yaml
   collect  validate evaluation runs against the frozen matrix; write results.csv, paired.json, not_run.json
-  train    BLOCKED: variant-specific training is not connected to the full-feature trainer
+  train    delegate each variant/seed/fold to scripts/train_lstm.py / train_baseline.py (modeling owner);
+           BLOCKED (exit 3) while those scripts do not exist; --dry-run writes train_plan.json only
 Nothing here fabricates results: experiments without runs are listed as not run.
 """
 from __future__ import annotations
@@ -126,11 +127,51 @@ def freeze(run_id: str, config_path: Path, seeds: Sequence[int] | None, out_root
     return target
 
 
-def run_experiment(spec: Mapping[str, Any]) -> None:
-    """Each ablation requires its own feature-set-specific scaler and model training."""
-    raise Blocked(f"cannot run {spec.get('experiment_id')}: variant-specific trainer integration is missing. "
-                  "Phase11/13 CLIs train the fixed full-feature baseline, not the A–E ablation matrix; "
-                  "train each variant with its own scaler/checkpoint before evaluation and collect")
+TRAINER_SCRIPTS = {"lstm": Path("scripts/train_lstm.py"), "rf": Path("scripts/train_baseline.py")}
+
+
+def train_command(spec: Mapping[str, Any], *, seed: int, fold: int, run_dir: Path, python: str = sys.executable) -> list[str]:
+    """Proposed trainer contract (see docs/Team_01_Interface_Conventions.md section 6).
+
+    The trainer is owned by the modeling owner; each variant gets its own feature order, train-only scaler and
+    checkpoint, and must write predictions + a provenance JSON into ``run_dir`` for `scripts.evaluate`.
+    """
+    module = TRAINER_SCRIPTS[spec["model"]].with_suffix("").as_posix().replace("/", ".")
+    return [python, "-m", module, "--experiment-id", spec["experiment_id"], "--feature-names",
+            ",".join(spec["feature_names"]), "--calibration-mode", spec["calibration_mode"],
+            "--seed", str(seed), "--outer-fold", str(fold), "--run-dir", str(run_dir)]
+
+
+def plan_runs(matrix: Mapping[str, Any], out_dir: Path, experiments: Sequence[str] | None = None,
+              folds: Sequence[int] | None = None) -> list[dict[str, Any]]:
+    wanted = set(experiments) if experiments else None
+    known = {v["experiment_id"] for v in matrix["variants"]}
+    if wanted and wanted - known:
+        raise AblationError(f"unknown experiments {sorted(wanted - known)}; frozen: {sorted(known)}")
+    use_folds = list(folds) if folds else matrix["outer_folds"]
+    if set(use_folds) - set(matrix["outer_folds"]):
+        raise AblationError(f"folds {sorted(set(use_folds) - set(matrix['outer_folds']))} are not frozen outer folds")
+    plan = []
+    for spec in matrix["variants"]:
+        if wanted and spec["experiment_id"] not in wanted:
+            continue
+        for seed in matrix["seeds"]:
+            for fold in use_folds:
+                run_dir = out_dir / "runs" / f"{spec['experiment_id']}_s{seed}_f{fold}"
+                plan.append({"experiment_id": spec["experiment_id"], "seed": seed, "outer_fold": fold,
+                             "run_dir": str(run_dir), "command": train_command(spec, seed=seed, fold=fold, run_dir=run_dir)})
+    return plan
+
+
+def run_experiment(spec: Mapping[str, Any], *, seed: int, fold: int, run_dir: Path) -> int:
+    """Delegate one variant/seed/fold to the trainer script; BLOCKED if the owner has not delivered it."""
+    import subprocess
+
+    script = TRAINER_SCRIPTS[spec["model"]]
+    if not script.is_file():
+        raise Blocked(f"{script} does not exist yet (modeling owner, Phase 11/13); cannot train {spec['experiment_id']}")
+    run_dir.mkdir(parents=True, exist_ok=True)
+    return subprocess.run(train_command(spec, seed=seed, fold=fold, run_dir=run_dir)).returncode
 
 
 # ------------------------------------------------------------------ collect
@@ -240,9 +281,9 @@ def write_results(out_dir: Path, matrix: Mapping[str, Any], rows: list[dict], pa
     not_run = [{"experiment_id": v["experiment_id"], "status": "chưa thực hiện",
                 "reason": "no evaluation run supplied"} for v in matrix["variants"] if v["experiment_id"] not in ran]
     not_run += list(matrix["extensions"])
-    (out_dir / "not_run.json").write_text(json.dumps(not_run, indent=2, ensure_ascii=True), encoding="utf-8")
+    (out_dir / "not_run.json").write_text(json.dumps(not_run, indent=2, ensure_ascii=False), encoding="utf-8")
     (out_dir / "paired.json").write_text(json.dumps(ev.clean_for_json(paired), indent=2, sort_keys=True,
-                                                    ensure_ascii=True, allow_nan=False), encoding="utf-8")
+                                                    ensure_ascii=False, allow_nan=False), encoding="utf-8")
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -259,8 +300,12 @@ def build_parser() -> argparse.ArgumentParser:
     c.add_argument("--out-root", type=Path, default=Path("runs"))
     c.add_argument("--n-boot", type=int, default=1000)
     c.add_argument("--seed", type=int, default=0)
-    t = sub.add_parser("train", help="BLOCKED until variant-specific training is connected")
+    t = sub.add_parser("train", help="train each frozen variant via the owner's trainer scripts")
     t.add_argument("--run-id", required=True)
+    t.add_argument("--out-root", type=Path, default=Path("runs"))
+    t.add_argument("--experiments", nargs="+", help="subset of frozen experiment ids (default all)")
+    t.add_argument("--folds", type=int, nargs="+", help="subset of frozen outer folds (default all)")
+    t.add_argument("--dry-run", action="store_true", help="only write train_plan.json and print the commands")
     return p
 
 
@@ -276,7 +321,24 @@ def main(argv: list[str] | None = None) -> int:
             write_results(out, matrix, rows, compare_paired_subjects(per_subject, n_boot=args.n_boot, seed=args.seed))
             print(f"wrote {out / 'results.csv'} ({len(rows)} rows)")
         else:
-            run_experiment({"experiment_id": "all"})
+            out = args.out_root / f"ablation_{args.run_id}"
+            matrix = _load_matrix(out / "matrix.json")
+            plan = plan_runs(matrix, out, args.experiments, args.folds)
+            (out / "train_plan.json").write_text(json.dumps(plan, indent=2), encoding="utf-8")
+            if args.dry_run:
+                for item in plan:
+                    print(" ".join(item["command"]))
+                print(f"wrote {out / 'train_plan.json'} ({len(plan)} runs, nothing trained)")
+                return 0
+            specs = {v["experiment_id"]: v for v in matrix["variants"]}
+            for item in plan:
+                code = run_experiment(specs[item["experiment_id"]], seed=item["seed"], fold=item["outer_fold"],
+                                      run_dir=Path(item["run_dir"]))
+                if code != 0:
+                    print(f"run_ablation: trainer failed ({code}) for {item['experiment_id']} "
+                          f"seed {item['seed']} fold {item['outer_fold']}", file=sys.stderr)
+                    return code
+            print(f"trained {len(plan)} runs; next: scripts.evaluate per run, then `collect`")
     except Blocked as exc:
         print(f"run_ablation: BLOCKED: {exc}", file=sys.stderr)
         return EXIT_BLOCKED
