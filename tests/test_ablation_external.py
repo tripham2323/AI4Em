@@ -44,8 +44,27 @@ def test_freeze_is_immutable_and_idempotent(tmp_path):
         abl.freeze("t", cfg, [1, 2], tmp_path)  # different matrix under the same id
 
 
-def test_train_is_blocked_not_faked():
-    assert abl.main(["train", "--run-id", "x"]) == abl.EXIT_BLOCKED
+def test_train_is_blocked_not_faked_while_trainer_script_is_missing(tmp_path):
+    abl.freeze("tr", PROJECT_ROOT / "configs/training.yaml", [42], tmp_path)
+    assert not abl.TRAINER_SCRIPTS["lstm"].exists()  # modeling owner has not delivered scripts/train_lstm.py
+    assert abl.main(["train", "--run-id", "tr", "--out-root", str(tmp_path), "--experiments", "A"]) == abl.EXIT_BLOCKED
+    assert abl.main(["train", "--run-id", "missing", "--out-root", str(tmp_path)]) == 2  # no frozen matrix
+
+
+def test_train_dry_run_plans_every_variant_seed_fold_with_own_feature_order(tmp_path):
+    abl.freeze("pl", PROJECT_ROOT / "configs/training.yaml", [42, 7], tmp_path)
+    assert abl.main(["train", "--run-id", "pl", "--out-root", str(tmp_path), "--dry-run"]) == 0
+    plan = json.loads((tmp_path / "ablation_pl" / "train_plan.json").read_text())
+    assert len(plan) == 6 * 2 * 5  # A-E + RF_D, two seeds, five folds
+    a = next(p for p in plan if p["experiment_id"] == "A")["command"]
+    assert a[a.index("--feature-names") + 1] == "ear_left_norm,ear_right_norm,closure_elapsed_s,left_eye_valid,right_eye_valid,calibration_valid"
+    assert a[a.index("--calibration-mode") + 1] == "P0" and "scripts.train_lstm" in a
+    rf = next(p for p in plan if p["experiment_id"] == "RF_D")["command"]
+    assert "scripts.train_baseline" in rf
+    e = next(p for p in plan if p["experiment_id"] == "E")["command"]
+    assert e[e.index("--calibration-mode") + 1] == "P1"
+    with pytest.raises(abl.AblationError):
+        abl.plan_runs(json.loads((tmp_path / "ablation_pl" / "matrix.json").read_text()), tmp_path, ["Z"])
 
 
 # ----------------------------------------------------------------- collect
